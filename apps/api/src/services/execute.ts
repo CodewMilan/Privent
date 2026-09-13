@@ -1,6 +1,13 @@
 import {
+  createSimulatedArcPayer,
+  modeFromReceipt,
+  PROTOCOL_BRIEF,
+  type ArcPayer,
+} from "@privent/arc";
+import {
   authorizeExecution,
   type ExecutionPermit,
+  type ExecutionResult,
   type Executor,
 } from "@privent/blockchain";
 import {
@@ -9,6 +16,12 @@ import {
   runTreasuryRiskWorkflow,
   type PrivateStrategy,
 } from "@privent/chainlink";
+import {
+  createStaticGraphClient,
+  evaluateProtocolPulse,
+  HEALTHY_DEMO_PULSE,
+  type GraphClient,
+} from "@privent/graph";
 import { createSimulatedLedger, type LedgerSigner } from "@privent/ledger";
 import { evaluateAction } from "@privent/policy-engine";
 import {
@@ -41,6 +54,8 @@ import { getOrCreateControls } from "./wallet.js";
 export interface ExecuteServices {
   ledger: LedgerSigner;
   creStrategy: PrivateStrategy;
+  graph: GraphClient;
+  arc: ArcPayer;
 }
 
 export function defaultExecuteServices(
@@ -49,6 +64,8 @@ export function defaultExecuteServices(
   return {
     ledger: overrides.ledger ?? createSimulatedLedger(),
     creStrategy: overrides.creStrategy ?? DEMO_PRIVATE_STRATEGY,
+    graph: overrides.graph ?? createStaticGraphClient(HEALTHY_DEMO_PULSE),
+    arc: overrides.arc ?? createSimulatedArcPayer(),
   };
 }
 
@@ -108,7 +125,7 @@ export async function executeAuthorized(
   agent: Agent,
   request: ActionRequest,
   approvalStatus: ApprovalStatus | null,
-  _services: ExecuteServices = defaultExecuteServices(),
+  services: ExecuteServices = defaultExecuteServices(),
 ): Promise<ChainTransaction | null> {
   const existing = getTransactionByAction(db, request.id);
   if (existing) {
@@ -161,22 +178,31 @@ export async function executeAuthorized(
     agentId: agent.id,
     actionRequestId: request.id,
     type: "signer.requested",
-    message: "Handing authorized action to the signer",
+    message:
+      request.action === "PAYMENT"
+        ? "Handing authorized payment to Arc"
+        : "Handing authorized action to the signer",
   });
 
-  const result = await executor.send(permit);
+  const result =
+    request.action === "PAYMENT"
+      ? await settleArc(services.arc, request)
+      : await executor.send(permit);
   const tx = insertTransaction(db, request.id, result);
 
   if (result.hash) {
+    const paid = request.action === "PAYMENT";
     writeAudit(db, {
       agentId: agent.id,
       actionRequestId: request.id,
-      type:
-        result.status === "confirmed"
+      type: paid
+        ? "arc.settled"
+        : result.status === "confirmed"
           ? "transaction.confirmed"
           : "transaction.broadcast",
-      message:
-        result.status === "confirmed"
+      message: paid
+        ? "Arc nanopayment settled"
+        : result.status === "confirmed"
           ? "Transaction confirmed"
           : "Transaction broadcast",
       metadata: {
@@ -184,6 +210,7 @@ export async function executeAuthorized(
         mode: result.mode,
         from: result.fromAddress,
         to: result.toAddress,
+        simulated: result.mode === "simulated",
       },
     });
   } else {
@@ -218,9 +245,15 @@ export async function submitAction(
   assertNoPrivateLeak(confidential.evaluation, services.creStrategy);
   assertNoPrivateLeak(confidential.report, services.creStrategy);
 
+  const pulse = await services.graph.readPulse();
+  const graphEval = evaluateProtocolPulse(proposed, pulse);
+
   const evaluation = combineEvaluations(
-    combineEvaluations(appEval, walletEval),
-    confidential.evaluation,
+    combineEvaluations(
+      combineEvaluations(appEval, walletEval),
+      confidential.evaluation,
+    ),
+    graphEval,
   );
 
   const request = insertActionRequest(db, agent.id, proposed, evaluation);
@@ -261,6 +294,22 @@ export async function submitAction(
     message: `Confidential workflow → ${confidential.evaluation.decision}`,
     metadata: confidentialAudit,
   });
+  writeAudit(db, {
+    agentId: agent.id,
+    actionRequestId: request.id,
+    type: "graph.evaluated",
+    message: `Live protocol data → ${graphEval.decision}`,
+    metadata: {
+      code: graphEval.code,
+      reason: graphEval.reason,
+      protocol: pulse.protocol,
+      pair: pulse.pair,
+      tvlUsd: pulse.tvlUsd,
+      volume24hUsd: pulse.volume24hUsd,
+      simulated: pulse.simulated,
+      source: pulse.source,
+    },
+  });
 
   if (evaluation.decision === "REQUIRE_APPROVAL") {
     insertPendingApproval(db, request.id);
@@ -278,11 +327,41 @@ export async function submitAction(
       message:
         evaluation.code === "WALLET_POLICY_DENIED"
           ? "Denied by wallet policy — never reached the signer"
-          : "Denied by policy — never reached the signer",
+          : evaluation.code === "GRAPH_DENIED"
+            ? "Denied by live protocol data — never reached the signer"
+            : "Denied by policy — never reached the signer",
     });
   } else {
     await executeAuthorized(db, executor, agent, request, null, services);
   }
 
   return { request, evaluation };
+}
+
+async function settleArc(
+  payer: ArcPayer,
+  request: ActionRequest,
+): Promise<ExecutionResult> {
+  const receipt = await payer.pay({
+    actionRequestId: request.id,
+    resource: PROTOCOL_BRIEF.resource,
+    to: request.recipient ?? "",
+    amountCents: request.amountCents,
+    asset: "USDC",
+    reason: request.reason,
+  });
+
+  return {
+    status:
+      receipt.status === "settled"
+        ? "confirmed"
+        : receipt.status === "rejected"
+          ? "failed"
+          : "failed",
+    hash: receipt.settlementId,
+    fromAddress: receipt.fromAddress,
+    toAddress: receipt.toAddress,
+    mode: modeFromReceipt(receipt),
+    error: receipt.error,
+  };
 }

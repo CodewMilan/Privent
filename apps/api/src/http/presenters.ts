@@ -5,6 +5,7 @@ import {
   type ApprovalRequest,
   type ChainTransaction,
 } from "@privent/shared";
+import type { ProtocolPulse } from "@privent/graph";
 import type { DeviceConfirmation } from "../repos/device.js";
 
 export function presentAgent(agent: Agent) {
@@ -59,5 +60,22 @@ export function presentAction(
     txMode: transaction?.mode ?? null,
     txError: transaction?.error ?? null,
     createdAt: request.createdAt,
+  };
+}
+
+export function presentPulse(pulse: ProtocolPulse) {
+  return {
+    status: pulse.status,
+    simulated: pulse.simulated,
+    protocol: pulse.protocol,
+    pair: pulse.pair,
+    pool: pulse.pool,
+    tvlUsd: pulse.tvlUsd,
+    volume24hUsd: pulse.volume24hUsd,
+    previousVolumeUsd: pulse.previousVolumeUsd,
+    ethPriceUsd: pulse.ethPriceUsd,
+    asOf: pulse.asOf,
+    source: pulse.source,
+    error: pulse.error,
   };
 }

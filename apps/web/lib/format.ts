@@ -28,9 +28,22 @@ export function formatTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+export function formatCompactUsd(amount: number): string {
+  if (amount >= 1_000_000_000) {
+    return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (amount >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(1)}M`;
+  }
+  if (amount >= 10_000) {
+    return `$${(amount / 1_000).toFixed(0)}K`;
+  }
+  return formatUsd(amount);
+}
+
 export function explorerTxUrl(
   hash: string | null,
-  mode: "simulated" | "testnet" | null,
+  mode: "simulated" | "testnet" | "arc" | null,
 ): string | null {
   if (!hash || mode !== "testnet") {
     return null;

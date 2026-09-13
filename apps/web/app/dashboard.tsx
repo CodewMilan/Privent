@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { PermissionRow } from "@privent/shared";
 import {
+  buyProtocolBrief,
   confirmLedger,
   decideAction,
   fetchOverview,
@@ -16,6 +17,7 @@ import {
   decisionLabel,
   explorerTxUrl,
   formatAddress,
+  formatCompactUsd,
   formatTime,
   formatTxHash,
   formatUsd,
@@ -96,6 +98,24 @@ export function Dashboard() {
     }
   }
 
+  async function onBuyBrief() {
+    if (load.status !== "ok") return;
+    setBusyId("brief");
+    setFormError(null);
+    try {
+      await buyProtocolBrief(
+        load.data.agent.id,
+        load.data.effective.allowedRecipients[0] ??
+          "0x2222222222222222222222222222222222222222",
+      );
+      await refresh();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Payment failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function onLedger(actionId: string, status: "confirmed" | "rejected") {
     if (load.status !== "ok") return;
     setBusyId(actionId);
@@ -164,11 +184,19 @@ export function Dashboard() {
             />
           </div>
 
-          <ApprovalsCard
-            items={load.data.pendingApprovals}
-            busyId={busyId}
-            onDecide={onDecide}
-          />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <MarketCard
+              market={load.data.market}
+              payments={load.data.payments}
+              busy={busyId === "brief"}
+              onBuyBrief={onBuyBrief}
+            />
+            <ApprovalsCard
+              items={load.data.pendingApprovals}
+              busyId={busyId}
+              onDecide={onDecide}
+            />
+          </div>
 
           <LedgerCard
             items={load.data.waitingForLedger}
@@ -309,6 +337,87 @@ function PermissionsCard({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function marketVote(market: Overview["market"]): string {
+  if (market.status === "unconfigured") return "Not configured";
+  if (market.status === "error") return "Unavailable";
+  if (
+    market.previousVolumeUsd &&
+    market.volume24hUsd != null &&
+    market.volume24hUsd < market.previousVolumeUsd * 0.5
+  ) {
+    return "Cooling — needs approval";
+  }
+  if (market.tvlUsd != null && market.tvlUsd < 1_000_000) {
+    return "Thin liquidity — denied";
+  }
+  return "Healthy";
+}
+
+function MarketCard({
+  market,
+  payments,
+  busy,
+  onBuyBrief,
+}: {
+  market: Overview["market"];
+  payments: Overview["payments"];
+  busy: boolean;
+  onBuyBrief: () => void;
+}) {
+  const vote = marketVote(market);
+  return (
+    <section className="rounded-lg border border-line bg-surface p-5">
+      <h2 className="text-sm text-mute">Live protocol data</h2>
+      <p className="mt-1 text-xs text-mute">
+        {market.simulated
+          ? "Static pulse for tests — Graph is not attached."
+          : `${market.protocol} · The Graph`}
+      </p>
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+        <Row label="Pool" value={market.pair} />
+        <Row
+          label="TVL"
+          value={market.tvlUsd == null ? "—" : formatCompactUsd(market.tvlUsd)}
+        />
+        <Row
+          label="24h volume"
+          value={
+            market.volume24hUsd == null
+              ? "—"
+              : formatCompactUsd(market.volume24hUsd)
+          }
+        />
+        <Row
+          label="ETH"
+          value={
+            market.ethPriceUsd == null ? "—" : formatUsd(market.ethPriceUsd)
+          }
+        />
+        <Row label="Graph vote" value={vote} />
+        <Row
+          label="Arc"
+          value={
+            payments.simulated
+              ? "USDC nanopayment · simulated"
+              : "USDC nanopayment · Arc testnet"
+          }
+        />
+      </dl>
+      {market.error && (
+        <p className="mt-3 text-sm text-deny">{market.error}</p>
+      )}
+      <button
+        type="button"
+        className={`${buttonClass} mt-5 bg-brass text-bg`}
+        disabled={busy}
+        onClick={onBuyBrief}
+      >
+        {busy ? "Paying…" : `Buy protocol brief · ${formatUsd(payments.briefCents / 100)}`}
+      </button>
     </section>
   );
 }
@@ -572,8 +681,10 @@ function TxLine({ item }: { item: PresentedAction }) {
   }
 
   const href = explorerTxUrl(item.txHash, item.txMode);
-  const label =
-    item.txMode === "testnet" ? formatTxHash(item.txHash) : `${formatTxHash(item.txHash)} · local`;
+  const rail = item.action === "PAYMENT" ? "Arc" : item.txMode === "testnet" ? null : "local";
+  const label = rail
+    ? `${formatTxHash(item.txHash)} · ${rail}`
+    : formatTxHash(item.txHash);
 
   if (href) {
     return (

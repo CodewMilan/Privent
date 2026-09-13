@@ -188,6 +188,7 @@ describe("execute / approve / deny", () => {
         "policy.evaluated",
         "wallet.evaluated",
         "confidential.evaluated",
+        "graph.evaluated",
         "signer.requested",
         "transaction.confirmed",
         "approval.requested",
@@ -208,6 +209,8 @@ describe("execute / approve / deny", () => {
     expect(agentPkg).not.toMatch(/blockchain/);
     expect(agentPkg).not.toMatch(/ledger/);
     expect(agentPkg).not.toMatch(/chainlink/);
+    expect(agentPkg).not.toMatch(/graph/);
+    expect(agentPkg).not.toMatch(/arc/);
     expect(policyPkg).not.toMatch(/blockchain/);
   });
 });

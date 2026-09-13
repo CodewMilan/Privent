@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import type { ArcPayer } from "@privent/arc";
 import {
   createSimulatedExecutor,
   type Executor,
 } from "@privent/blockchain";
-import type { EnsReader } from "@privent/ens";
-import type { PrivyClient } from "@privent/privy";
-import type { LedgerSigner } from "@privent/ledger";
 import type { PrivateStrategy } from "@privent/chainlink";
+import type { EnsReader } from "@privent/ens";
+import type { GraphClient } from "@privent/graph";
+import type { LedgerSigner } from "@privent/ledger";
+import type { PrivyClient } from "@privent/privy";
 import type { HealthResponse } from "@privent/shared";
 import { isDatabaseConnected, type AppDatabase } from "./db/client.js";
 import { agentRoutes } from "./routes/agents.js";
@@ -21,6 +23,8 @@ export interface AppServices {
   chainId?: number;
   ledger?: LedgerSigner;
   creStrategy?: PrivateStrategy;
+  graph?: GraphClient;
+  arc?: ArcPayer;
 }
 
 export function createApp(
@@ -32,11 +36,15 @@ export function createApp(
   const execute = defaultExecuteServices({
     ledger: services.ledger,
     creStrategy: services.creStrategy,
+    graph: services.graph,
+    arc: services.arc,
   });
   const resolved: AppServices = {
     ...services,
     ledger: execute.ledger,
     creStrategy: execute.creStrategy,
+    graph: execute.graph,
+    arc: execute.arc,
   };
 
   const app = new Hono();

@@ -59,6 +59,9 @@ importers:
       '@privent/agent':
         specifier: workspace:*
         version: link:../../packages/agent
+      '@privent/arc':
+        specifier: workspace:*
+        version: link:../../packages/arc
       '@privent/blockchain':
         specifier: workspace:*
         version: link:../../packages/blockchain
@@ -68,6 +71,9 @@ importers:
       '@privent/ens':
         specifier: workspace:*
         version: link:../../packages/ens
+      '@privent/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
       '@privent/ledger':
         specifier: workspace:*
         version: link:../../packages/ledger
@@ -134,7 +140,18 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
-  packages/arc: {}
+  packages/arc:
+    dependencies:
+      '@privent/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.20.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/blockchain:
     dependencies:
@@ -181,7 +198,18 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  packages/graph: {}
+  packages/graph:
+    dependencies:
+      '@privent/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.20.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/ledger:
     dependencies:

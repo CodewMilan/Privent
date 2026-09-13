@@ -14,6 +14,8 @@ export function describePermissions(policy: {
   const rows: PermissionRow[] = [
     { label: "Read treasury", state: "allowed" },
     { label: "Analyze markets", state: "allowed" },
+    { label: "Read live protocol data", state: "allowed" },
+    { label: "Pay protocol briefs", state: "allowed" },
     {
       label: `Spend under $${policy.approvalThreshold.toLocaleString("en-US")}`,
       state: "allowed",

@@ -59,6 +59,9 @@ describe("dashboard overview", () => {
     expect(overview.signer.mode).toBe("simulated");
     expect(overview.signer.highRisk).toBe("simulated");
     expect(overview.confidential.simulated).toBe(true);
+    expect(overview.market.protocol).toBe("Uniswap V3");
+    expect(overview.market.simulated).toBe(true);
+    expect(overview.payments.rail).toBe("arc");
     expect(JSON.stringify(overview)).not.toContain("42500");
     expect(JSON.stringify(overview)).not.toContain("privent-demo-salt");
   });

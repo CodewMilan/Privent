@@ -56,7 +56,7 @@ export interface ApprovalRequest {
   createdAt: string;
 }
 
-export type ExecutionMode = "simulated" | "testnet";
+export type ExecutionMode = "simulated" | "testnet" | "arc";
 
 export interface ChainTransaction {
   id: string;
@@ -126,7 +126,12 @@ export type PolicyReasonCode =
   | "WALLET_POLICY_DENIED"
   | "CONFIDENTIAL_REQUIRES_APPROVAL"
   | "CONFIDENTIAL_DENIED"
-  | "LEDGER_REQUIRED";
+  | "LEDGER_REQUIRED"
+  | "GRAPH_ALLOWED"
+  | "GRAPH_NEUTRAL"
+  | "GRAPH_REQUIRES_APPROVAL"
+  | "GRAPH_UNAVAILABLE"
+  | "GRAPH_DENIED";
 
 export interface PolicyEvaluation {
   decision: PolicyDecision;

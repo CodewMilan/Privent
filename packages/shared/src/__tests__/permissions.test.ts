@@ -22,6 +22,14 @@ describe("describePermissions", () => {
       state: "denied",
     });
     expect(rows).toContainEqual({
+      label: "Read live protocol data",
+      state: "allowed",
+    });
+    expect(rows).toContainEqual({
+      label: "Pay protocol briefs",
+      state: "allowed",
+    });
+    expect(rows).toContainEqual({
       label: "High-risk signing",
       state: "approval",
     });

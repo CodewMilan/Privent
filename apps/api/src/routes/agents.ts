@@ -18,7 +18,7 @@ import {
 import type { AppServices } from "../app.js";
 import type { AppDatabase } from "../db/client.js";
 import { readActor } from "../http/actor.js";
-import { presentAction, presentAgent } from "../http/presenters.js";
+import { presentAction, presentAgent, presentPulse } from "../http/presenters.js";
 import {
   getActionRequest,
   listActionRequests,
@@ -92,6 +92,8 @@ export function agentRoutes(
   const execute = defaultExecuteServices({
     ledger: services.ledger,
     creStrategy: services.creStrategy,
+    graph: services.graph,
+    arc: services.arc,
   });
   const routes = new Hono();
 
@@ -148,6 +150,8 @@ export function agentRoutes(
         item.ledgerStatus === "pending",
     );
 
+    const pulse = await execute.graph.readPulse();
+
     return c.json({
       agent: {
         ...presented,
@@ -162,6 +166,13 @@ export function agentRoutes(
       confidential: {
         tee: "nitro-sim",
         simulated: true,
+      },
+      market: presentPulse(pulse),
+      payments: {
+        rail: "arc",
+        kind: execute.arc.kind,
+        simulated: execute.arc.kind === "simulated",
+        briefCents: 2,
       },
       identity,
       wallet: {

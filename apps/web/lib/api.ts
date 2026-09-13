@@ -36,7 +36,7 @@ export interface PresentedAction {
   decidedBy: string | null;
   txHash: string | null;
   txStatus: "pending" | "broadcast" | "confirmed" | "failed" | null;
-  txMode: "simulated" | "testnet" | null;
+  txMode: "simulated" | "testnet" | "arc" | null;
   txError: string | null;
   ledgerStatus: "not_required" | "pending" | "confirmed" | "rejected" | null;
   ledgerDevice: "simulated" | "cli" | null;
@@ -60,6 +60,26 @@ export interface Overview {
   confidential: {
     tee: string;
     simulated: boolean;
+  };
+  market: {
+    status: "ok" | "unconfigured" | "error";
+    simulated: boolean;
+    protocol: string;
+    pair: string;
+    pool: string;
+    tvlUsd: number | null;
+    volume24hUsd: number | null;
+    previousVolumeUsd: number | null;
+    ethPriceUsd: number | null;
+    asOf: string;
+    source: string;
+    error: string | null;
+  };
+  payments: {
+    rail: "arc";
+    kind: "simulated" | "circle";
+    simulated: boolean;
+    briefCents: number;
   };
   identity: {
     ensName: string | null;
@@ -120,6 +140,25 @@ export async function fetchOverview(): Promise<Overview> {
   }
 
   return readJson<Overview>(await fetch(`${API_URL}/agents/${agent.id}/overview`));
+}
+
+export async function buyProtocolBrief(
+  agentId: string,
+  recipient: string,
+): Promise<void> {
+  await readJson(
+    await fetch(`${API_URL}/agents/${agentId}/actions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "PAYMENT",
+        asset: "USDC",
+        amount: 0.02,
+        recipient,
+        reason: "Pay for Uniswap V3 protocol brief",
+      }),
+    }),
+  );
 }
 
 export async function proposePayment(

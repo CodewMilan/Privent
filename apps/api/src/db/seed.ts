@@ -56,6 +56,8 @@ export async function seedDemoIfEmpty(
   const execute = defaultExecuteServices({
     ledger: services.ledger,
     creStrategy: services.creStrategy,
+    graph: services.graph,
+    arc: services.arc,
   });
 
   for (const sample of SAMPLE_PAYMENTS) {

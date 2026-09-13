@@ -2,9 +2,11 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadEnvFile } from "node:process";
 import { serve } from "@hono/node-server";
+import { createArcFromEnv } from "@privent/arc";
 import { createExecutorFromEnv } from "@privent/blockchain";
 import { DEMO_PRIVATE_STRATEGY } from "@privent/chainlink";
 import { createViemEnsReader } from "@privent/ens";
+import { createGraphFromEnv } from "@privent/graph";
 import { createLedgerFromEnv } from "@privent/ledger";
 import { createHttpPrivyClient } from "@privent/privy";
 import { createApp } from "./app.js";
@@ -35,6 +37,8 @@ migrate(db);
 
 const executor = createExecutorFromEnv();
 const ledger = createLedgerFromEnv();
+const graph = createGraphFromEnv();
+const arc = createArcFromEnv();
 const services = {
   ensReader: createViemEnsReader(process.env.ENS_RPC_URL, 1),
   privy:
@@ -48,6 +52,8 @@ const services = {
   chainId,
   ledger,
   creStrategy: DEMO_PRIVATE_STRATEGY,
+  graph,
+  arc,
 };
 
 await seedDemoIfEmpty(db, executor, services);
@@ -68,4 +74,6 @@ serve({ fetch: app.fetch, port }, (info) => {
   console.log(`signer mode: ${executor.mode} from ${executor.fromAddress}`);
   console.log(`high-risk: Ledger ${ledger.kind}`);
   console.log("confidential: CRE nitro-sim (simulated)");
+  console.log(`market: Graph ${graph.kind}`);
+  console.log(`payments: Arc ${arc.kind}`);
 });

@@ -13,9 +13,11 @@
   "dependencies": {
     "@hono/node-server": "^1.14.1",
     "@privent/agent": "workspace:*",
+    "@privent/arc": "workspace:*",
     "@privent/blockchain": "workspace:*",
     "@privent/chainlink": "workspace:*",
     "@privent/ens": "workspace:*",
+    "@privent/graph": "workspace:*",
     "@privent/ledger": "workspace:*",
     "@privent/policy-engine": "workspace:*",
     "@privent/privy": "workspace:*",

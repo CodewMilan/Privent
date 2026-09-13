@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decisionLabel,
   formatAddress,
+  formatCompactUsd,
   formatTxHash,
   formatUsd,
 } from "./format";
@@ -9,6 +10,7 @@ import {
 describe("dashboard formatters", () => {
   it("formats money, addresses, hashes, and decisions", () => {
     expect(formatUsd(1200)).toBe("$1,200");
+    expect(formatCompactUsd(414886263)).toBe("$414.9M");
     expect(formatAddress("0x1111111111111111111111111111111111111111")).toBe(
       "0x1111…1111",
     );
