@@ -10,9 +10,13 @@ export function openDatabase(path: string): AppDatabase {
   }
 
   const db = new DatabaseSync(path);
+  // The isolated signer opens this same file. Default SQLite busy
+  // timeout is 0, which makes the second process crash on boot.
+  db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA foreign_keys = ON");
   if (path !== ":memory:") {
     db.exec("PRAGMA journal_mode = WAL");
+    db.exec("PRAGMA synchronous = NORMAL");
   }
   return db;
 }

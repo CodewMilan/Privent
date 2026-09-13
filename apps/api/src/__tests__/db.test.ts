@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { isDatabaseConnected, openDatabase } from "../db/client.js";
 import { appliedMigrations, migrate } from "../db/migrate.js";
@@ -36,6 +39,26 @@ describe("database", () => {
 
     for (const name of REQUIRED_TABLES) {
       expect(tables.map((table) => table.name)).toContain(name);
+    }
+  });
+});
+
+describe("shared sqlite file", () => {
+  it("lets a second connection open while the first is still held", () => {
+    const dir = mkdtempSync(join(tmpdir(), "privent-db-"));
+    const path = join(dir, "privent.db");
+    const first = openDatabase(path);
+    try {
+      migrate(first);
+      const second = openDatabase(path);
+      try {
+        expect(isDatabaseConnected(second)).toBe(true);
+      } finally {
+        second.close();
+      }
+    } finally {
+      first.close();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

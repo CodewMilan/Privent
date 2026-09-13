@@ -11,13 +11,42 @@ import type {
 
 export type SignerDatabase = DatabaseSync;
 
-export function openSignerDatabase(path: string): SignerDatabase {
+function isLocked(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const err = error as { code?: string; errstr?: string; message?: string };
+  return (
+    err.code === "ERR_SQLITE_ERROR" &&
+    /database is locked/i.test(`${err.errstr ?? ""} ${err.message ?? ""}`)
+  );
+}
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function connect(path: string): SignerDatabase {
   const db = new DatabaseSync(path);
+  db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA foreign_keys = ON");
   if (path !== ":memory:") {
     db.exec("PRAGMA journal_mode = WAL");
+    db.exec("PRAGMA synchronous = NORMAL");
   }
   return db;
+}
+
+export function openSignerDatabase(path: string): SignerDatabase {
+  let last: unknown;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      return connect(path);
+    } catch (error) {
+      last = error;
+      if (!isLocked(error) || attempt === 7) throw error;
+      sleepSync(200 * (attempt + 1));
+    }
+  }
+  throw last;
 }
 
 interface AgentRow {

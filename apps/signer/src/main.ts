@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { loadEnvFile } from "node:process";
+import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { createExecutorFromEnv } from "@privent/blockchain";
 import { createSignerApp } from "./app.js";
@@ -31,10 +32,13 @@ function requireEnv(name: string): string {
 
 async function main(): Promise<void> {
   const port = Number(process.env.SIGNER_PORT ?? "3002");
-  const dbPath =
+  const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const dbPath = resolve(
+    packageRoot,
     process.env.SIGNER_DATABASE_PATH ??
-    process.env.DATABASE_PATH ??
-    "./apps/api/data/privent.db";
+      process.env.DATABASE_PATH ??
+      "../api/data/privent.db",
+  );
   const chainId = Number(process.env.CHAIN_ID ?? "11155111");
   const bearerToken = requireEnv("SIGNER_TOKEN");
 
