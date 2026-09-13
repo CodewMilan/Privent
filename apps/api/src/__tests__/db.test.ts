@@ -10,6 +10,7 @@ const REQUIRED_TABLES = [
   "transactions",
   "audit_events",
   "agent_controls",
+  "device_confirmations",
 ];
 
 describe("database", () => {

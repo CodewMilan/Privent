@@ -38,6 +38,8 @@ export interface PresentedAction {
   txStatus: "pending" | "broadcast" | "confirmed" | "failed" | null;
   txMode: "simulated" | "testnet" | null;
   txError: string | null;
+  ledgerStatus: "not_required" | "pending" | "confirmed" | "rejected" | null;
+  ledgerDevice: "simulated" | "cli" | null;
   createdAt: string;
 }
 
@@ -53,6 +55,11 @@ export interface Overview {
   signer: {
     mode: "simulated" | "testnet";
     fromAddress: string;
+    highRisk: "simulated" | "cli";
+  };
+  confidential: {
+    tee: string;
+    simulated: boolean;
   };
   identity: {
     ensName: string | null;
@@ -88,6 +95,7 @@ export interface Overview {
   };
   permissions: PermissionRow[];
   pendingApprovals: PresentedAction[];
+  waitingForLedger: PresentedAction[];
   activity: PresentedAction[];
   audit: AuditEvent[];
 }
@@ -129,6 +137,24 @@ export async function proposePayment(
         recipient: input.recipient,
         reason: input.reason,
       }),
+    }),
+  );
+}
+
+export async function confirmLedger(
+  agentId: string,
+  actionId: string,
+  status: "confirmed" | "rejected",
+): Promise<void> {
+  await readJson(
+    await fetch(`${API_URL}/agents/${agentId}/actions/${actionId}/ledger`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-actor-type": "human",
+        "x-actor-id": "acme-cfo",
+      },
+      body: JSON.stringify({ status }),
     }),
   );
 }

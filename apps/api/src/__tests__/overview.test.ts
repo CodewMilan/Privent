@@ -57,6 +57,10 @@ describe("dashboard overview", () => {
     expect(allowed.txHash).toMatch(/^0x[a-f0-9]{64}$/);
     expect(denied.txHash).toBeNull();
     expect(overview.signer.mode).toBe("simulated");
+    expect(overview.signer.highRisk).toBe("simulated");
+    expect(overview.confidential.simulated).toBe(true);
+    expect(JSON.stringify(overview)).not.toContain("42500");
+    expect(JSON.stringify(overview)).not.toContain("privent-demo-salt");
   });
 
   it("lets a human approve and blocks the agent from approving", async () => {
@@ -99,6 +103,7 @@ describe("dashboard overview", () => {
       await app.request(`/agents/${agents[0].id}/overview`)
     ).json();
     expect(after.pendingApprovals).toHaveLength(0);
+    expect(after.waitingForLedger).toHaveLength(1);
   });
 
   it("counts approved spend toward spentToday, not just ALLOW", async () => {
@@ -121,6 +126,24 @@ describe("dashboard overview", () => {
           "x-actor-id": "cfo",
         },
         body: JSON.stringify({ status: "approved" }),
+      },
+    );
+
+    const waiting = await (
+      await app.request(`/agents/${agents[0].id}/overview`)
+    ).json();
+    expect(waiting.agent.spentToday).toBe(320);
+
+    await app.request(
+      `/agents/${agents[0].id}/actions/${pendingId}/ledger`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-actor-type": "human",
+          "x-actor-id": "cfo",
+        },
+        body: JSON.stringify({ status: "confirmed" }),
       },
     );
 

@@ -80,3 +80,13 @@ CREATE TABLE IF NOT EXISTS agent_controls (
   updated_at TEXT NOT NULL,
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
+
+CREATE TABLE IF NOT EXISTS device_confirmations (
+  action_request_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL,
+  device TEXT NOT NULL,
+  preview TEXT,
+  decided_at TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (action_request_id) REFERENCES action_requests(id)
+);

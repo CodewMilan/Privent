@@ -62,9 +62,15 @@ importers:
       '@privent/blockchain':
         specifier: workspace:*
         version: link:../../packages/blockchain
+      '@privent/chainlink':
+        specifier: workspace:*
+        version: link:../../packages/chainlink
       '@privent/ens':
         specifier: workspace:*
         version: link:../../packages/ens
+      '@privent/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
       '@privent/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine
@@ -146,7 +152,18 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  packages/chainlink: {}
+  packages/chainlink:
+    dependencies:
+      '@privent/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.20.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/ens:
     dependencies:
@@ -166,7 +183,21 @@ importers:
 
   packages/graph: {}
 
-  packages/ledger: {}
+  packages/ledger:
+    dependencies:
+      '@privent/blockchain':
+        specifier: workspace:*
+        version: link:../blockchain
+      '@privent/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.20.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/policy-engine:
     dependencies:

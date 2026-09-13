@@ -3,6 +3,13 @@ import {
   type ExecutionPermit,
   type Executor,
 } from "@privent/blockchain";
+import {
+  DEMO_PRIVATE_STRATEGY,
+  assertNoPrivateLeak,
+  runTreasuryRiskWorkflow,
+  type PrivateStrategy,
+} from "@privent/chainlink";
+import { createSimulatedLedger, type LedgerSigner } from "@privent/ledger";
 import { evaluateAction } from "@privent/policy-engine";
 import {
   combineEvaluations,
@@ -22,10 +29,28 @@ import { insertActionRequest, spentTodayCents } from "../repos/actions.js";
 import { insertPendingApproval } from "../repos/approvals.js";
 import { writeAudit } from "../repos/audit.js";
 import {
+  getDeviceConfirmation,
+  insertPendingDevice,
+} from "../repos/device.js";
+import {
   getTransactionByAction,
   insertTransaction,
 } from "../repos/transactions.js";
 import { getOrCreateControls } from "./wallet.js";
+
+export interface ExecuteServices {
+  ledger: LedgerSigner;
+  creStrategy: PrivateStrategy;
+}
+
+export function defaultExecuteServices(
+  overrides: Partial<ExecuteServices> = {},
+): ExecuteServices {
+  return {
+    ledger: overrides.ledger ?? createSimulatedLedger(),
+    creStrategy: overrides.creStrategy ?? DEMO_PRIVATE_STRATEGY,
+  };
+}
 
 function permitFor(
   request: ActionRequest,
@@ -55,12 +80,35 @@ function proposedFrom(request: ActionRequest): ProposedAction {
   };
 }
 
+export async function queueLedgerConfirmation(
+  db: AppDatabase,
+  services: ExecuteServices,
+  agent: Agent,
+  request: ActionRequest,
+): Promise<void> {
+  const existing = getDeviceConfirmation(db, request.id);
+  if (existing) return;
+
+  const preview = await services.ledger.preview(
+    permitFor(request, "approved"),
+  );
+  insertPendingDevice(db, request.id, services.ledger.kind, preview);
+  writeAudit(db, {
+    agentId: agent.id,
+    actionRequestId: request.id,
+    type: "ledger.requested",
+    message: "Waiting for Ledger confirmation",
+    metadata: { device: services.ledger.kind, dryRun: preview.dryRun },
+  });
+}
+
 export async function executeAuthorized(
   db: AppDatabase,
   executor: Executor,
   agent: Agent,
   request: ActionRequest,
   approvalStatus: ApprovalStatus | null,
+  _services: ExecuteServices = defaultExecuteServices(),
 ): Promise<ChainTransaction | null> {
   const existing = getTransactionByAction(db, request.id);
   if (existing) {
@@ -80,6 +128,20 @@ export async function executeAuthorized(
       metadata: { code: walletGate.code },
     });
     return null;
+  }
+
+  if (request.policyDecision === "REQUIRE_APPROVAL") {
+    const device = getDeviceConfirmation(db, request.id);
+    if (!device || device.status !== "confirmed") {
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "ledger.blocked",
+        message: "High-risk actions cannot reach the signer without Ledger confirmation",
+        metadata: { code: "LEDGER_REQUIRED" },
+      });
+      return null;
+    }
   }
 
   const permit = permitFor(request, approvalStatus);
@@ -142,6 +204,7 @@ export async function submitAction(
   executor: Executor,
   agent: Agent,
   proposed: ProposedAction,
+  services: ExecuteServices = defaultExecuteServices(),
 ): Promise<{ request: ActionRequest; evaluation: PolicyEvaluation }> {
   const appEval = evaluateAction(proposed, agent.policy, {
     spentTodayCents: spentTodayCents(db, agent.id),
@@ -151,7 +214,14 @@ export async function submitAction(
   const walletEval = evaluateWalletPolicy(proposed, wallet, {
     humanApproved: false,
   });
-  const evaluation = combineEvaluations(appEval, walletEval);
+  const confidential = runTreasuryRiskWorkflow(proposed, services.creStrategy);
+  assertNoPrivateLeak(confidential.evaluation, services.creStrategy);
+  assertNoPrivateLeak(confidential.report, services.creStrategy);
+
+  const evaluation = combineEvaluations(
+    combineEvaluations(appEval, walletEval),
+    confidential.evaluation,
+  );
 
   const request = insertActionRequest(db, agent.id, proposed, evaluation);
 
@@ -175,6 +245,22 @@ export async function submitAction(
     message: `Wallet policy → ${walletEval.decision}`,
     metadata: { code: walletEval.code, reason: walletEval.reason },
   });
+  const confidentialAudit = {
+    code: confidential.evaluation.code,
+    reason: confidential.evaluation.reason,
+    tee: confidential.report.tee,
+    simulated: confidential.simulated,
+    attestation: confidential.report.attestation,
+  };
+  assertNoPrivateLeak(confidentialAudit, services.creStrategy);
+
+  writeAudit(db, {
+    agentId: agent.id,
+    actionRequestId: request.id,
+    type: "confidential.evaluated",
+    message: `Confidential workflow → ${confidential.evaluation.decision}`,
+    metadata: confidentialAudit,
+  });
 
   if (evaluation.decision === "REQUIRE_APPROVAL") {
     insertPendingApproval(db, request.id);
@@ -195,7 +281,7 @@ export async function submitAction(
           : "Denied by policy — never reached the signer",
     });
   } else {
-    await executeAuthorized(db, executor, agent, request, null);
+    await executeAuthorized(db, executor, agent, request, null, services);
   }
 
   return { request, evaluation };

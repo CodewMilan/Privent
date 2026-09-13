@@ -123,7 +123,10 @@ export type PolicyReasonCode =
   | "EXCEEDS_PER_TRANSACTION_LIMIT"
   | "EXCEEDS_DAILY_LIMIT"
   | "ACTOR_NOT_ALLOWED"
-  | "WALLET_POLICY_DENIED";
+  | "WALLET_POLICY_DENIED"
+  | "CONFIDENTIAL_REQUIRES_APPROVAL"
+  | "CONFIDENTIAL_DENIED"
+  | "LEDGER_REQUIRED";
 
 export interface PolicyEvaluation {
   decision: PolicyDecision;

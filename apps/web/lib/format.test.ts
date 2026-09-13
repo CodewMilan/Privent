@@ -21,6 +21,12 @@ describe("dashboard formatters", () => {
     expect(decisionLabel("REQUIRE_APPROVAL")).toBe("Needs approval");
     expect(decisionLabel("DENY")).toBe("Denied");
     expect(decisionLabel("REQUIRE_APPROVAL", "approved")).toBe("Approved");
+    expect(
+      decisionLabel("REQUIRE_APPROVAL", "approved", null, "pending"),
+    ).toBe("Waiting for Ledger");
+    expect(
+      decisionLabel("REQUIRE_APPROVAL", "approved", null, "rejected"),
+    ).toBe("Ledger rejected");
     expect(decisionLabel("ALLOW", null, "confirmed")).toBe("Executed");
     expect(decisionLabel("ALLOW", null, "failed")).toBe("Failed");
   });

@@ -33,8 +33,17 @@ import {
 import { decideApproval, getApprovalByAction } from "../repos/approvals.js";
 import { listAudit, writeAudit } from "../repos/audit.js";
 import { upsertControls } from "../repos/controls.js";
+import {
+  decideDevice,
+  getDeviceConfirmation,
+} from "../repos/device.js";
 import { getTransactionByAction } from "../repos/transactions.js";
-import { executeAuthorized, submitAction } from "../services/execute.js";
+import {
+  defaultExecuteServices,
+  executeAuthorized,
+  queueLedgerConfirmation,
+  submitAction,
+} from "../services/execute.js";
 import { describeIdentity } from "../services/identity.js";
 import {
   getOrCreateControls,
@@ -46,6 +55,7 @@ function presentTrackedAction(db: AppDatabase, request: ActionRequest) {
     request,
     getApprovalByAction(db, request.id),
     getTransactionByAction(db, request.id),
+    getDeviceConfirmation(db, request.id),
   );
 }
 
@@ -79,6 +89,10 @@ export function agentRoutes(
 ): Hono {
   const dashboardUrl = services.dashboardUrl ?? "http://localhost:3000";
   const chainId = services.chainId ?? 11155111;
+  const execute = defaultExecuteServices({
+    ledger: services.ledger,
+    creStrategy: services.creStrategy,
+  });
   const routes = new Hono();
 
   routes.post("/", async (c) => {
@@ -127,6 +141,12 @@ export function agentRoutes(
         item.policyDecision === "REQUIRE_APPROVAL" &&
         item.approvalStatus === "pending",
     );
+    const waitingForLedger = activity.filter(
+      (item) =>
+        item.policyDecision === "REQUIRE_APPROVAL" &&
+        item.approvalStatus === "approved" &&
+        item.ledgerStatus === "pending",
+    );
 
     return c.json({
       agent: {
@@ -137,6 +157,11 @@ export function agentRoutes(
       signer: {
         mode: executor.mode,
         fromAddress: executor.fromAddress,
+        highRisk: execute.ledger.kind,
+      },
+      confidential: {
+        tee: "nitro-sim",
+        simulated: true,
       },
       identity,
       wallet: {
@@ -149,6 +174,7 @@ export function agentRoutes(
       effective,
       permissions: describePermissions(effective),
       pendingApprovals,
+      waitingForLedger,
       activity,
       audit: listAudit(db, agent.id),
     });
@@ -185,6 +211,7 @@ export function agentRoutes(
       executor,
       agent,
       proposed,
+      execute,
     );
 
     return c.json(
@@ -251,7 +278,7 @@ export function agentRoutes(
     });
 
     if (body.status === "approved") {
-      await executeAuthorized(db, executor, agent, request, "approved");
+      await queueLedgerConfirmation(db, execute, agent, request);
     } else {
       writeAudit(db, {
         agentId: agent.id,
@@ -259,6 +286,111 @@ export function agentRoutes(
         type: "execution.skipped",
         message: "Rejected by human — never reached the signer",
       });
+    }
+
+    return c.json(presentTrackedAction(db, request));
+  });
+
+  routes.post("/:id/actions/:actionId/ledger", async (c) => {
+    const agent = getAgent(db, c.req.param("id"));
+    if (!agent) {
+      return c.json({ error: "Agent not found" }, 404);
+    }
+
+    const request = getActionRequest(db, agent.id, c.req.param("actionId"));
+    if (!request) {
+      return c.json({ error: "Action not found" }, 404);
+    }
+
+    if (request.policyDecision !== "REQUIRE_APPROVAL") {
+      return c.json({ error: "This action does not need Ledger confirmation" }, 400);
+    }
+
+    const actor = readActor(c);
+    const authorization = canApproveAction(actor, agent.id);
+    if (authorization.decision !== "ALLOW") {
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "ledger.denied",
+        message: authorization.reason,
+        metadata: { actor },
+      });
+      return c.json({ error: authorization.reason }, 403);
+    }
+
+    const approval = getApprovalByAction(db, request.id);
+    if (approval?.status !== "approved") {
+      return c.json({ error: "Human approval is required before Ledger confirmation" }, 400);
+    }
+
+    const parsedBody = await readJsonBody<{ status?: string }>(c);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.value;
+    if (body.status !== "confirmed" && body.status !== "rejected") {
+      return c.json({ error: "status must be confirmed or rejected" }, 400);
+    }
+
+    const existing = getDeviceConfirmation(db, request.id);
+    if (!existing) {
+      return c.json({ error: "Ledger confirmation record missing for this action" }, 500);
+    }
+    if (existing.status !== "pending") {
+      return c.json({ error: "This Ledger confirmation has already been decided" }, 409);
+    }
+
+    if (body.status === "rejected") {
+      decideDevice(db, request.id, "rejected", existing.preview);
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "ledger.rejected",
+        message: "Ledger rejected the action — never reached the signer",
+      });
+      return c.json(presentTrackedAction(db, request));
+    }
+
+    try {
+      const confirmed = await execute.ledger.confirm({
+        transfer: {
+          actionRequestId: request.id,
+          to: request.recipient ?? "",
+          amountCents: request.amountCents,
+          asset: request.asset,
+          reason: request.reason,
+        },
+        policyDecision: request.policyDecision,
+        approvalStatus: "approved",
+      });
+      if (confirmed.status !== "confirmed") {
+        decideDevice(db, request.id, "rejected", confirmed.preview);
+        writeAudit(db, {
+          agentId: agent.id,
+          actionRequestId: request.id,
+          type: "ledger.rejected",
+          message: "Ledger rejected the action — never reached the signer",
+        });
+        return c.json(presentTrackedAction(db, request));
+      }
+      decideDevice(db, request.id, "confirmed", confirmed.preview);
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "ledger.confirmed",
+        message: "Ledger confirmed the action",
+        metadata: { device: confirmed.device, dryRun: confirmed.preview.dryRun },
+      });
+      await executeAuthorized(db, executor, agent, request, "approved", execute);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Ledger confirmation failed";
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "ledger.failed",
+        message,
+      });
+      return c.json({ error: message }, 400);
     }
 
     return c.json(presentTrackedAction(db, request));

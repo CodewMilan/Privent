@@ -28,6 +28,23 @@ async function createTreasury(app: ReturnType<typeof createApp>) {
   return { response, body: await response.json() };
 }
 
+async function confirmLedger(
+  app: ReturnType<typeof createApp>,
+  agentId: string,
+  actionId: string,
+  actor: { type: string; id: string } = { type: "human", id: "cfo" },
+) {
+  return app.request(`/agents/${agentId}/actions/${actionId}/ledger`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-actor-type": actor.type,
+      "x-actor-id": actor.id,
+    },
+    body: JSON.stringify({ status: "confirmed" }),
+  });
+}
+
 async function propose(
   app: ReturnType<typeof createApp>,
   agentId: string,
@@ -126,7 +143,13 @@ describe("execute / approve / deny", () => {
     );
     const approvedBody = await approved.json();
     expect(approvedBody.approvalStatus).toBe("approved");
-    expect(approvedBody.txHash).toMatch(/^0x[a-f0-9]{64}$/);
+    expect(approvedBody.txHash).toBeNull();
+    expect(approvedBody.ledgerStatus).toBe("pending");
+
+    const confirmed = await confirmLedger(app, agent.id, pending.request.id);
+    const confirmedBody = await confirmed.json();
+    expect(confirmedBody.ledgerStatus).toBe("confirmed");
+    expect(confirmedBody.txHash).toMatch(/^0x[a-f0-9]{64}$/);
   });
 
   it("writes an audit trail and never stores a private key", async () => {
@@ -145,6 +168,7 @@ describe("execute / approve / deny", () => {
         body: JSON.stringify({ status: "approved" }),
       },
     );
+    await confirmLedger(app, agent.id, pending.request.id);
     await propose(app, agent.id, 5000);
 
     const overview = await (
@@ -162,10 +186,14 @@ describe("execute / approve / deny", () => {
       expect.arrayContaining([
         "action.requested",
         "policy.evaluated",
+        "wallet.evaluated",
+        "confidential.evaluated",
         "signer.requested",
         "transaction.confirmed",
         "approval.requested",
         "approval.approved",
+        "ledger.requested",
+        "ledger.confirmed",
         "execution.skipped",
       ]),
     );
@@ -178,6 +206,8 @@ describe("execute / approve / deny", () => {
       "utf8",
     );
     expect(agentPkg).not.toMatch(/blockchain/);
+    expect(agentPkg).not.toMatch(/ledger/);
+    expect(agentPkg).not.toMatch(/chainlink/);
     expect(policyPkg).not.toMatch(/blockchain/);
   });
 });

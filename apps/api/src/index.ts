@@ -3,7 +3,9 @@ import { resolve } from "node:path";
 import { loadEnvFile } from "node:process";
 import { serve } from "@hono/node-server";
 import { createExecutorFromEnv } from "@privent/blockchain";
+import { DEMO_PRIVATE_STRATEGY } from "@privent/chainlink";
 import { createViemEnsReader } from "@privent/ens";
+import { createLedgerFromEnv } from "@privent/ledger";
 import { createHttpPrivyClient } from "@privent/privy";
 import { createApp } from "./app.js";
 import { openDatabase } from "./db/client.js";
@@ -32,6 +34,7 @@ const db = openDatabase(databasePath);
 migrate(db);
 
 const executor = createExecutorFromEnv();
+const ledger = createLedgerFromEnv();
 const services = {
   ensReader: createViemEnsReader(process.env.ENS_RPC_URL, 1),
   privy:
@@ -43,6 +46,8 @@ const services = {
       : undefined,
   dashboardUrl,
   chainId,
+  ledger,
+  creStrategy: DEMO_PRIVATE_STRATEGY,
 };
 
 await seedDemoIfEmpty(db, executor, services);
@@ -61,4 +66,6 @@ if (services.privy) {
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`privent-api listening on http://localhost:${info.port}`);
   console.log(`signer mode: ${executor.mode} from ${executor.fromAddress}`);
+  console.log(`high-risk: Ledger ${ledger.kind}`);
+  console.log("confidential: CRE nitro-sim (simulated)");
 });

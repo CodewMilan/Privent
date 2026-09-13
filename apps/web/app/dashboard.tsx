@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { PermissionRow } from "@privent/shared";
 import {
+  confirmLedger,
   decideAction,
   fetchOverview,
   proposePayment,
@@ -95,6 +96,19 @@ export function Dashboard() {
     }
   }
 
+  async function onLedger(actionId: string, status: "confirmed" | "rejected") {
+    if (load.status !== "ok") return;
+    setBusyId(actionId);
+    try {
+      await confirmLedger(load.data.agent.id, actionId, status);
+      await refresh();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Ledger failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-6 lg:px-8">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -137,6 +151,7 @@ export function Dashboard() {
               signer={load.data.signer}
               identity={load.data.identity}
               effective={load.data.effective}
+              confidential={load.data.confidential}
             />
             <PermissionsCard
               rows={load.data.permissions}
@@ -153,6 +168,12 @@ export function Dashboard() {
             items={load.data.pendingApprovals}
             busyId={busyId}
             onDecide={onDecide}
+          />
+
+          <LedgerCard
+            items={load.data.waitingForLedger}
+            busyId={busyId}
+            onLedger={onLedger}
           />
 
           <ProposeCard
@@ -197,11 +218,13 @@ function AgentCard({
   signer,
   identity,
   effective,
+  confidential,
 }: {
   agent: Overview["agent"];
   signer: Overview["signer"];
   identity: Overview["identity"];
   effective: Overview["effective"];
+  confidential: Overview["confidential"];
 }) {
   return (
     <section className="rounded-lg border border-line bg-surface p-5">
@@ -228,6 +251,22 @@ function AgentCard({
               : `Local · ${formatAddress(signer.fromAddress)}`
           }
           mono
+        />
+        <Row
+          label="High-risk"
+          value={
+            signer.highRisk === "cli"
+              ? "Ledger CLI"
+              : "Ledger · simulated device"
+          }
+        />
+        <Row
+          label="Confidential"
+          value={
+            confidential.simulated
+              ? "CRE TEE simulation"
+              : confidential.tee
+          }
         />
         <Row label="Treasury" value={`${formatUsd(agent.treasury)} USDC`} />
         <Row label="Spent today" value={formatUsd(agent.spentToday)} />
@@ -270,6 +309,63 @@ function PermissionsCard({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function LedgerCard({
+  items,
+  busyId,
+  onLedger,
+}: {
+  items: PresentedAction[];
+  busyId: string | null;
+  onLedger: (id: string, status: "confirmed" | "rejected") => void;
+}) {
+  return (
+    <section className="rounded-lg border border-line bg-surface p-5">
+      <h2 className="text-sm text-mute">Waiting for Ledger</h2>
+      {items.length === 0 ? (
+        <p className="mt-4 text-mute">
+          Approved mid-size spends wait here for on-device confirmation.
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-4">
+          {items.map((item) => (
+            <li key={item.id} className="rounded-md border border-line bg-raised p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-mono text-lg">{formatUsd(item.amount)} {item.asset}</p>
+                <p className="text-sm text-wait">Waiting for Ledger</p>
+              </div>
+              <p className="mt-2 text-sm">{item.reason}</p>
+              <p className="mt-1 font-mono text-xs text-mute">
+                {formatAddress(item.recipient)} · {formatTime(item.createdAt)}
+              </p>
+              <p className="mt-3 text-sm text-mute">
+                Human approved. Confirm on the device to send, or reject.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className={`${buttonClass} bg-allow text-bg`}
+                  disabled={busyId === item.id}
+                  onClick={() => onLedger(item.id, "confirmed")}
+                >
+                  Confirm on device
+                </button>
+                <button
+                  type="button"
+                  className={`${buttonClass} border border-line text-ink`}
+                  disabled={busyId === item.id}
+                  onClick={() => onLedger(item.id, "rejected")}
+                >
+                  Reject on device
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -411,19 +507,24 @@ function ActivityCard({ items }: { items: PresentedAction[] }) {
                 </p>
                 <p
                   className={`text-sm ${tone(
-                    item.txStatus === "failed" || item.approvalStatus === "rejected"
+                    item.txStatus === "failed" ||
+                    item.approvalStatus === "rejected" ||
+                    item.ledgerStatus === "rejected"
                       ? "DENY"
                       : item.txStatus === "confirmed" || item.txStatus === "broadcast"
                         ? "ALLOW"
-                        : item.approvalStatus === "approved"
-                          ? "ALLOW"
-                          : item.policyDecision,
+                        : item.ledgerStatus === "pending"
+                          ? "REQUIRE_APPROVAL"
+                          : item.approvalStatus === "approved"
+                            ? "ALLOW"
+                            : item.policyDecision,
                   )}`}
                 >
                   {decisionLabel(
                     item.policyDecision,
                     item.approvalStatus,
                     item.txStatus,
+                    item.ledgerStatus,
                   )}
                 </p>
               </div>
@@ -450,6 +551,20 @@ function TxLine({ item }: { item: PresentedAction }) {
   if (item.approvalStatus === "rejected") {
     return (
       <p className="mt-1 text-xs text-mute">Never sent — you rejected it.</p>
+    );
+  }
+  if (item.ledgerStatus === "rejected") {
+    return (
+      <p className="mt-1 text-xs text-mute">
+        Never sent — Ledger rejected it.
+      </p>
+    );
+  }
+  if (item.ledgerStatus === "pending") {
+    return (
+      <p className="mt-1 text-xs text-mute">
+        Waiting for on-device confirmation — not sent yet.
+      </p>
     );
   }
   if (!item.txHash) {

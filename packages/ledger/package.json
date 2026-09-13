@@ -9,5 +9,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@privent/blockchain": "workspace:*",
+    "@privent/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3"
   }
 }

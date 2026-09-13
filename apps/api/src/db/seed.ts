@@ -6,7 +6,7 @@ import type { AppDatabase } from "./client.js";
 import { insertAgent, listAgents } from "../repos/agents.js";
 import { writeAudit } from "../repos/audit.js";
 import { upsertControls } from "../repos/controls.js";
-import { submitAction } from "../services/execute.js";
+import { submitAction, defaultExecuteServices } from "../services/execute.js";
 import { publishPrivyPolicy } from "../services/wallet.js";
 
 const DEMO_RECIPIENT = "0x2222222222222222222222222222222222222222";
@@ -53,6 +53,11 @@ export async function seedDemoIfEmpty(
     await publishPrivyPolicy(db, agent, wallet, services.privy);
   }
 
+  const execute = defaultExecuteServices({
+    ledger: services.ledger,
+    creStrategy: services.creStrategy,
+  });
+
   for (const sample of SAMPLE_PAYMENTS) {
     await submitAction(
       db,
@@ -65,6 +70,7 @@ export async function seedDemoIfEmpty(
         recipient: DEMO_RECIPIENT,
         reason: sample.reason,
       }),
+      execute,
     );
   }
 }

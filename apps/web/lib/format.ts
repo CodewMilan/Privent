@@ -44,9 +44,14 @@ export function decisionLabel(
   decision: "ALLOW" | "DENY" | "REQUIRE_APPROVAL" | null,
   approvalStatus?: "pending" | "approved" | "rejected" | null,
   txStatus?: "pending" | "broadcast" | "confirmed" | "failed" | null,
+  ledgerStatus?: "not_required" | "pending" | "confirmed" | "rejected" | null,
 ): string {
   if (txStatus === "failed") return "Failed";
   if (txStatus === "broadcast" || txStatus === "confirmed") return "Executed";
+  if (ledgerStatus === "rejected") return "Ledger rejected";
+  if (approvalStatus === "approved" && ledgerStatus === "pending") {
+    return "Waiting for Ledger";
+  }
   if (approvalStatus === "approved") return "Approved";
   if (approvalStatus === "rejected") return "Rejected";
   if (decision === "ALLOW") return "Allowed";

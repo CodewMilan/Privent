@@ -22,6 +22,10 @@ describe("describePermissions", () => {
       state: "denied",
     });
     expect(rows).toContainEqual({
+      label: "High-risk signing",
+      state: "approval",
+    });
+    expect(rows).toContainEqual({
       label: "Change permissions",
       state: "denied",
     });

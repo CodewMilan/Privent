@@ -6,9 +6,12 @@ import {
 } from "@privent/blockchain";
 import type { EnsReader } from "@privent/ens";
 import type { PrivyClient } from "@privent/privy";
+import type { LedgerSigner } from "@privent/ledger";
+import type { PrivateStrategy } from "@privent/chainlink";
 import type { HealthResponse } from "@privent/shared";
 import { isDatabaseConnected, type AppDatabase } from "./db/client.js";
 import { agentRoutes } from "./routes/agents.js";
+import { defaultExecuteServices } from "./services/execute.js";
 import { ensureAgentControls } from "./services/wallet.js";
 
 export interface AppServices {
@@ -16,6 +19,8 @@ export interface AppServices {
   privy?: PrivyClient;
   dashboardUrl?: string;
   chainId?: number;
+  ledger?: LedgerSigner;
+  creStrategy?: PrivateStrategy;
 }
 
 export function createApp(
@@ -24,6 +29,15 @@ export function createApp(
   services: AppServices = {},
 ): Hono {
   ensureAgentControls(db, services.chainId);
+  const execute = defaultExecuteServices({
+    ledger: services.ledger,
+    creStrategy: services.creStrategy,
+  });
+  const resolved: AppServices = {
+    ...services,
+    ledger: execute.ledger,
+    creStrategy: execute.creStrategy,
+  };
 
   const app = new Hono();
 
@@ -49,7 +63,7 @@ export function createApp(
     return c.json(body);
   });
 
-  app.route("/agents", agentRoutes(db, executor, services));
+  app.route("/agents", agentRoutes(db, executor, resolved));
 
   return app;
 }

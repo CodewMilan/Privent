@@ -44,6 +44,10 @@ export function describePermissions(policy: {
   }
 
   rows.push(
+    {
+      label: "High-risk signing",
+      state: "approval",
+    },
     { label: "Change permissions", state: "denied" },
     { label: "Export private key", state: "denied" },
   );
