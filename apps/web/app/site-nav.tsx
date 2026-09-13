@@ -37,7 +37,7 @@ export function SiteNav({ current = "home" }: { current?: "home" | "dashboard" }
           href="/dashboard"
           className={`${display} font-medium leading-[1.2] text-[16px] text-black whitespace-nowrap no-underline`}
         >
-          {current === "dashboard" ? "Live desk" : "Demo"}
+          {current === "dashboard" ? "Treasury" : "App"}
         </Link>
         <Link
           href={current === "dashboard" ? "/" : "/dashboard"}

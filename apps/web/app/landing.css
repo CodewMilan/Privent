@@ -15,7 +15,7 @@
   content: "";
   position: absolute;
   inset: 0 0 auto 0;
-  height: 420px;
+  height: 280px;
   background: linear-gradient(to bottom, #a8d3ff, #fff4df);
   pointer-events: none;
   z-index: 0;
@@ -39,34 +39,26 @@
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 80px 20px 120px;
+  padding: 48px 20px 64px;
 }
 
 @media (min-width: 768px) {
   .desk {
-    padding: 88px 40px 140px;
+    padding: 56px 40px 80px;
   }
 }
 
 .desk-header {
-  max-width: 780px;
-  margin-bottom: 48px;
+  margin-bottom: 8px;
 }
 
 .desk-header h1 {
   margin: 0;
   font-family: var(--font-source-serif), ui-serif, serif;
-  font-size: clamp(40px, 6vw, 64px);
+  font-size: clamp(32px, 5vw, 44px);
   font-weight: 400;
-  line-height: 1;
+  line-height: 1.05;
   letter-spacing: -0.04em;
-}
-
-.desk-header h1 span {
-  display: block;
-  font-family: var(--font-radio-canada), ui-sans-serif, sans-serif;
-  font-weight: 400;
-  letter-spacing: -0.05em;
 }
 
 .desk-header p {

@@ -69,9 +69,16 @@ Feature flags (default off for the honest demo): `LEDGER_ENABLED`, `CRE_ENABLED`
 
 ## The three-transaction story
 
-1. **$320** — click "AI proposes: exchange listing fee" → LLM produces JSON → policy ALLOW → API calls signer over HTTP → signer independently re-authorizes → real Sepolia broadcast.
-2. **$1,200** — "AI proposes: vendor retainer" → policy REQUIRE_APPROVAL → human approves in dashboard → API asks signer → signer verifies approval row exists → real Sepolia broadcast.
-3. **$5,000 attack** — "AI (prompt-injected): urgent $5,000" → LLM produces the requested JSON → policy DENY → API never contacts the signer. Audit shows `execution.skipped` and zero `signer.requested` events for this action.
+Follow **[docs/demo-script.md](docs/demo-script.md)** to record (about 2 minutes). Before you hit record:
+
+```bash
+pnpm dev
+./scripts/preflight-demo.sh
+```
+
+1. **$320** — **Vendor payout** → policy ALLOW → isolated signer → Sepolia.
+2. **$1,200** — **Contractor invoice** → policy REQUIRE_APPROVAL → you Approve → Sepolia.
+3. **$5,000** — **Emergency transfer** → policy DENY → signer never called.
 
 ## Signer safety guarantees, and how they are tested
 

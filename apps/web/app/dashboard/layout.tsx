@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="desk-shell">
       <SiteNav current="dashboard" />
       {children}
-      <SiteFooter />
+      <SiteFooter compact />
     </div>
   );
 }
