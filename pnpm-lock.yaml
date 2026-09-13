@@ -56,6 +56,12 @@ importers:
       '@hono/node-server':
         specifier: ^1.14.1
         version: 1.19.17(hono@4.13.7)
+      '@privent/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
+      '@privent/policy-engine':
+        specifier: workspace:*
+        version: link:../../packages/policy-engine
       '@privent/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -107,7 +113,11 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  packages/agent: {}
+  packages/agent:
+    dependencies:
+      '@privent/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/arc: {}
 
@@ -121,7 +131,11 @@ importers:
 
   packages/ledger: {}
 
-  packages/policy-engine: {}
+  packages/policy-engine:
+    dependencies:
+      '@privent/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/privy: {}
 

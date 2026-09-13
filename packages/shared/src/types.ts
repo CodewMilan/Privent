@@ -80,3 +80,69 @@ export interface HealthResponse {
   db: "connected";
   time: string;
 }
+
+export type ActorType = "owner" | "human" | "agent";
+
+export interface Actor {
+  type: ActorType;
+  id: string;
+}
+
+export interface ProposedAction {
+  action: ActionType;
+  asset: string;
+  amountCents: number;
+  recipient: string | null;
+  contract: string | null;
+  reason: string;
+}
+
+export interface PolicyContext {
+  spentTodayCents: number;
+  agentStatus: AgentStatus;
+}
+
+export type PolicyReasonCode =
+  | "ALLOWED"
+  | "REQUIRES_APPROVAL"
+  | "AMOUNT_INVALID"
+  | "RECIPIENT_REQUIRED"
+  | "REASON_REQUIRED"
+  | "ASSET_NOT_ALLOWED"
+  | "RECIPIENT_NOT_ALLOWED"
+  | "CONTRACT_NOT_ALLOWED"
+  | "ACTION_NOT_ALLOWED"
+  | "AGENT_PAUSED"
+  | "EXCEEDS_DENY_THRESHOLD"
+  | "EXCEEDS_PER_TRANSACTION_LIMIT"
+  | "EXCEEDS_DAILY_LIMIT"
+  | "ACTOR_NOT_ALLOWED";
+
+export interface PolicyEvaluation {
+  decision: PolicyDecision;
+  reason: string;
+  code: PolicyReasonCode;
+}
+
+export interface CreateAgentInput {
+  name: string;
+  ensName?: string | null;
+  walletAddress?: string | null;
+  dailyLimit: number;
+  perTransactionLimit: number;
+  approvalThreshold: number;
+  denyThreshold: number;
+  allowedAssets: string[];
+  allowedContracts?: string[];
+  allowedRecipients?: string[];
+  owner?: string | null;
+}
+
+export interface ProposeActionInput {
+  action: ActionType;
+  asset: string;
+  amount: number;
+  recipient?: string | null;
+  contract?: string | null;
+  reason: string;
+}

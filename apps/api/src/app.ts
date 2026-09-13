@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { HealthResponse } from "@privent/shared";
 import { isDatabaseConnected, type AppDatabase } from "./db/client.js";
+import { agentRoutes } from "./routes/agents.js";
 
 export function createApp(db: AppDatabase): Hono {
   const app = new Hono();
@@ -27,6 +28,8 @@ export function createApp(db: AppDatabase): Hono {
 
     return c.json(body);
   });
+
+  app.route("/agents", agentRoutes(db));
 
   return app;
 }
