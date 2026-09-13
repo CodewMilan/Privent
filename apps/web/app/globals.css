@@ -7,20 +7,15 @@
 
 @theme {
   --color-bg: #ffffff;
-  --color-mint: #dceeeb;
-  --color-surface: #f0f1f2;
-  --color-raised: #e8ebed;
-  --color-line: #d1d2d5;
-  --color-ink: #181e15;
-  --color-mute: #6c706b;
-  --color-purple: #c190ff;
-  --color-green: #89ff75;
-  --color-teal: #18f0bf;
+  --color-surface: #ffffff;
+  --color-raised: #f6f8fb;
+  --color-line: #dbe0ec;
+  --color-ink: #000000;
+  --color-mute: #6c6c6c;
+  --color-brass: #000000;
   --color-allow: #1a7f3a;
   --color-wait: #9a6b12;
   --color-deny: #c0392b;
-  /* Backward-compat alias used by dashboard */
-  --color-brass: var(--color-purple);
   /* Figma font variables (set by next/font via CSS --font-* vars) */
   --font-sans: var(--font-radio-canada), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

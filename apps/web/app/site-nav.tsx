@@ -1,41 +1,52 @@
 import Link from "next/link";
 
+const display = "font-[var(--font-radio-canada)]";
+
 /**
- * Semrush-style sticky nav: white background, logo left,
- * nav links (desktop only), Login + dark Sign-Up pill right.
+ * Figma glass nav, shared by the live desk. Landing keeps its own
+ * inline copy so the marketing page stays pixel-identical.
  */
 export function SiteNav({ current = "home" }: { current?: "home" | "dashboard" }) {
   return (
-    <header className="site-nav">
-      <Link href="/" className="nav-brand" aria-label="Privent home">
-        {/* Simple wordmark mark */}
-        <svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <rect width="28" height="28" rx="6" fill="#181e15" />
-          <path d="M7 20V8h6.5a4.5 4.5 0 0 1 0 9H9.5" stroke="#c190ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M14 17l3.5 3" stroke="#c190ff" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        <span>Privent</span>
+    <nav
+      className="desk-nav"
+      style={{ backdropFilter: "blur(32px)" }}
+    >
+      <Link
+        href="/"
+        aria-label="Privent home"
+        className={`${display} font-medium text-[20px] text-black leading-none tracking-[-0.4px] shrink-0 no-underline`}
+      >
+        Privent
       </Link>
 
-      <nav className="nav-links" aria-label="Main navigation">
-        <Link href="/#architecture">Architecture</Link>
-        <Link href="/#demo">Demo</Link>
-        <Link href="/#stats">Stats</Link>
-        <Link href="/#resources">Notes</Link>
-      </nav>
-
-      <div className="nav-actions">
-        {current === "dashboard" ? (
-          <>
-            <Link href="/" className="nav-login">Back to site</Link>
-          </>
-        ) : (
-          <>
-            <Link href="/dashboard" className="nav-login">Log in</Link>
-            <Link href="/dashboard" className="nav-signup">Open the desk</Link>
-          </>
-        )}
+      <div className={`hidden md:flex gap-[20px] items-center ${display}`}>
+        <Link
+          href="/#architecture"
+          className={`${display} font-medium leading-[1.2] text-[16px] text-black whitespace-nowrap no-underline`}
+        >
+          Architecture
+        </Link>
+        <Link
+          href="/#notes"
+          className={`${display} font-medium leading-[1.2] text-[16px] text-black whitespace-nowrap no-underline`}
+        >
+          Notes
+        </Link>
+        <Link
+          href="/dashboard"
+          className={`${display} font-medium leading-[1.2] text-[16px] text-black whitespace-nowrap no-underline`}
+        >
+          {current === "dashboard" ? "Live desk" : "Demo"}
+        </Link>
+        <Link
+          href={current === "dashboard" ? "/" : "/dashboard"}
+          className={`${display} font-medium leading-[1.2] text-[16px] text-black whitespace-nowrap no-underline flex items-center gap-[4px]`}
+        >
+          {current === "dashboard" ? "Back to site" : "Get started"}
+          <span aria-hidden="true" className="text-[12px]">↗</span>
+        </Link>
       </div>
-    </header>
+    </nav>
   );
 }

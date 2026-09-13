@@ -1,54 +1,46 @@
 import Link from "next/link";
 
+const display = "font-[var(--font-radio-canada)]";
+const serif = "font-[var(--font-source-serif)]";
+
 /**
- * Semrush-style footer: dark CTA section on top + white multi-column links.
+ * Yellow Figma footer, used on the live desk. Wordmark is set in
+ * Radio Canada Big so it matches the landing without the asset image.
  */
 export function SiteFooter() {
   return (
-    <footer className="site-footer">
-      <nav className="footer-cols" aria-label="Footer navigation">
-        <div className="footer-col">
-          <p className="footer-brand">Privent</p>
-          <p className="footer-brand-desc">
-            Bounded financial authority for autonomous agents. The AI proposes.
-            Policy decides. An isolated signer executes.
-          </p>
-        </div>
-        <div className="footer-col">
-          <p className="footer-col-heading">Product</p>
-          <Link href="/dashboard">Live desk</Link>
-          <Link href="/#demo">Three-amount story</Link>
-          <Link href="/#architecture">Signer isolation</Link>
-          <Link href="/#stats">Stats</Link>
-        </div>
-        <div className="footer-col">
-          <p className="footer-col-heading">Technology</p>
-          <a href="https://sepolia.etherscan.io" rel="noreferrer" target="_blank">
-            Sepolia explorer
-          </a>
-          <a href="https://thegraph.com" rel="noreferrer" target="_blank">
-            The Graph
-          </a>
-          <a href="https://privy.io" rel="noreferrer" target="_blank">
-            Privy
-          </a>
-          <a href="https://openrouter.ai" rel="noreferrer" target="_blank">
-            OpenRouter
+    <footer className="bg-[#fff546] flex flex-col gap-[20px] items-center p-[20px] w-full">
+      <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between w-full text-[#66640f] text-[20px]">
+        <div className={`${display} font-medium flex flex-wrap gap-[20px] items-center leading-none tracking-[-0.4px]`}>
+          <Link href="/#architecture" className="text-[#66640f] no-underline">
+            Architecture
+          </Link>
+          <Link href="/#notes" className="text-[#66640f] no-underline">
+            Notes
+          </Link>
+          <Link href="/dashboard" className="text-[#66640f] no-underline">
+            Live desk
+          </Link>
+          <a
+            href="https://sepolia.etherscan.io"
+            className="text-[#66640f] no-underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Sepolia
           </a>
         </div>
-        <div className="footer-col">
-          <p className="footer-col-heading">Security posture</p>
-          <span>AI key access · none</span>
-          <span>Policy · enforced</span>
-          <span>Signer · isolated</span>
-          <span>Ledger · not connected</span>
-          <span>Arc · not connected</span>
-        </div>
-      </nav>
-
-      <div className="footer-bottom">
-        <span>© 2026 Privent. All rights reserved.</span>
-        <span>Built on Sepolia · The Graph · Privy · OpenRouter</span>
+        <p className={`${serif} leading-[1.2] not-italic text-right tracking-[-0.8px] m-0`}>
+          © 2026  ·  All rights reserved
+        </p>
+      </div>
+      <div aria-label="Privent wordmark" className="w-full">
+        <p
+          className={`${display} font-medium w-full text-[#66640f] leading-none tracking-[-0.04em] m-0`}
+          style={{ fontSize: "clamp(48px, 15vw, 204px)" }}
+        >
+          PRIVENT
+        </p>
       </div>
     </footer>
   );
