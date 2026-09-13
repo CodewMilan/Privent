@@ -9,6 +9,7 @@
     "dev:web": "pnpm --filter @privent/web dev",
     "build": "pnpm -r build",
     "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck"
   },
