@@ -5,5 +5,5 @@
 [signer] listening on http://127.0.0.1:3002 (mode=testnet, chain=11155111)
 [signer] from=0x459947e70CFb8604d1ebDeE6b0E8F39b4529c38C db=../api/data/privent.db
 [signer] AI has no access to this process or the private key.
-(node:83663) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(node:87412) ExperimentalWarning: SQLite is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
