@@ -48,9 +48,13 @@ CREATE TABLE IF NOT EXISTS approvals (
 
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
-  action_request_id TEXT NOT NULL,
+  action_request_id TEXT NOT NULL UNIQUE,
   hash TEXT,
   status TEXT NOT NULL,
+  from_address TEXT,
+  to_address TEXT,
+  mode TEXT,
+  error TEXT,
   created_at TEXT NOT NULL,
   FOREIGN KEY (action_request_id) REFERENCES action_requests(id)
 );

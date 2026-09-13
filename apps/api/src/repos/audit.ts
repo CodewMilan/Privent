@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sanitizeMetadata, sanitizeValue } from "@privent/blockchain";
 import type { AuditEvent } from "@privent/shared";
 import type { AppDatabase } from "../db/client.js";
 
@@ -31,8 +32,10 @@ export function writeAudit(
     event.agentId ?? null,
     event.actionRequestId ?? null,
     event.type,
-    event.message,
-    event.metadata ? JSON.stringify(event.metadata) : null,
+    typeof event.message === "string"
+      ? (sanitizeValue(event.message) as string)
+      : event.message,
+    event.metadata ? JSON.stringify(sanitizeMetadata(event.metadata)) : null,
     new Date().toISOString(),
   );
 }

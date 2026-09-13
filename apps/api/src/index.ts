@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { createExecutorFromEnv } from "@privent/blockchain";
 import { createApp } from "./app.js";
 import { openDatabase } from "./db/client.js";
 import { migrate } from "./db/migrate.js";
@@ -9,10 +10,13 @@ const databasePath = process.env.DATABASE_PATH ?? "./data/privent.db";
 
 const db = openDatabase(databasePath);
 migrate(db);
-seedDemoIfEmpty(db);
 
-const app = createApp(db);
+const executor = createExecutorFromEnv();
+await seedDemoIfEmpty(db, executor);
+
+const app = createApp(db, executor);
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`privent-api listening on http://localhost:${info.port}`);
+  console.log(`signer mode: ${executor.mode} from ${executor.fromAddress}`);
 });

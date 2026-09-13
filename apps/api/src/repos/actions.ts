@@ -100,13 +100,16 @@ export function spentTodayCents(db: AppDatabase, agentId: string): number {
   const startOfDay = new Date();
   startOfDay.setUTCHours(0, 0, 0, 0);
 
+  // Count spend that actually left the signer today. Pending, denied,
+  // rejected, and failed broadcasts do not consume the daily limit.
   const row = db
     .prepare(
-      `SELECT COALESCE(SUM(amount_cents), 0) AS total
-       FROM action_requests
-       WHERE agent_id = ?
-         AND policy_decision = 'ALLOW'
-         AND created_at >= ?`,
+      `SELECT COALESCE(SUM(ar.amount_cents), 0) AS total
+       FROM action_requests ar
+       INNER JOIN transactions tx ON tx.action_request_id = ar.id
+       WHERE ar.agent_id = ?
+         AND ar.created_at >= ?
+         AND tx.status IN ('broadcast', 'confirmed')`,
     )
     .get(agentId, startOfDay.toISOString()) as unknown as { total: number };
 

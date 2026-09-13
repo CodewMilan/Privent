@@ -11,6 +11,7 @@ export type {
   AuditEvent,
   ChainTransaction,
   CreateAgentInput,
+  ExecutionMode,
   HealthResponse,
   PolicyContext,
   PolicyDecision,

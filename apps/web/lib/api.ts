@@ -34,14 +34,30 @@ export interface PresentedAction {
   policyReason: string | null;
   approvalStatus: "pending" | "approved" | "rejected" | null;
   decidedBy: string | null;
+  txHash: string | null;
+  txStatus: "pending" | "broadcast" | "confirmed" | "failed" | null;
+  txMode: "simulated" | "testnet" | null;
+  txError: string | null;
+  createdAt: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  type: string;
+  message: string;
   createdAt: string;
 }
 
 export interface Overview {
   agent: PresentedAgent;
+  signer: {
+    mode: "simulated" | "testnet";
+    fromAddress: string;
+  };
   permissions: PermissionRow[];
   pendingApprovals: PresentedAction[];
   activity: PresentedAction[];
+  audit: AuditEvent[];
 }
 
 async function readJson<T>(response: Response): Promise<T> {

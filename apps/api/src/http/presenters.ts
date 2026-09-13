@@ -3,6 +3,7 @@ import {
   type ActionRequest,
   type Agent,
   type ApprovalRequest,
+  type ChainTransaction,
 } from "@privent/shared";
 
 export function presentAgent(agent: Agent) {
@@ -29,6 +30,7 @@ export function presentAgent(agent: Agent) {
 export function presentAction(
   request: ActionRequest,
   approval: ApprovalRequest | null = null,
+  transaction: ChainTransaction | null = null,
 ) {
   return {
     id: request.id,
@@ -43,6 +45,10 @@ export function presentAction(
     policyReason: request.policyReason,
     approvalStatus: approval?.status ?? null,
     decidedBy: approval?.decidedBy ?? null,
+    txHash: transaction?.hash ?? null,
+    txStatus: transaction?.status ?? null,
+    txMode: transaction?.mode ?? null,
+    txError: transaction?.error ?? null,
     createdAt: request.createdAt,
   };
 }

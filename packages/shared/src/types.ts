@@ -56,11 +56,17 @@ export interface ApprovalRequest {
   createdAt: string;
 }
 
+export type ExecutionMode = "simulated" | "testnet";
+
 export interface ChainTransaction {
   id: string;
   actionRequestId: string;
   hash: string | null;
   status: TransactionStatus;
+  fromAddress: string | null;
+  toAddress: string | null;
+  mode: ExecutionMode | null;
+  error: string | null;
   createdAt: string;
 }
 

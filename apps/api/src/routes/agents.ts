@@ -1,15 +1,12 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import type { Executor } from "@privent/blockchain";
 import {
   createAgent,
   createAgentPolicy,
   proposeAction,
   validateCreateAgentInput,
 } from "@privent/agent";
-import {
-  canApproveAction,
-  canChangePolicy,
-  evaluateAction,
-} from "@privent/policy-engine";
+import { canApproveAction, canChangePolicy } from "@privent/policy-engine";
 import {
   centsToDollars,
   describePermissions,
@@ -22,7 +19,6 @@ import { readActor } from "../http/actor.js";
 import { presentAction, presentAgent } from "../http/presenters.js";
 import {
   getActionRequest,
-  insertActionRequest,
   listActionRequests,
   spentTodayCents,
 } from "../repos/actions.js";
@@ -32,25 +28,49 @@ import {
   listAgents,
   updateAgentPolicy,
 } from "../repos/agents.js";
-import {
-  decideApproval,
-  getApprovalByAction,
-  insertPendingApproval,
-} from "../repos/approvals.js";
+import { decideApproval, getApprovalByAction } from "../repos/approvals.js";
 import { listAudit, writeAudit } from "../repos/audit.js";
+import { getTransactionByAction } from "../repos/transactions.js";
+import { executeAuthorized, submitAction } from "../services/execute.js";
 
 function presentTrackedAction(db: AppDatabase, request: ActionRequest) {
-  if (request.policyDecision === "REQUIRE_APPROVAL") {
-    return presentAction(request, insertPendingApproval(db, request.id));
-  }
-  return presentAction(request, getApprovalByAction(db, request.id));
+  return presentAction(
+    request,
+    getApprovalByAction(db, request.id),
+    getTransactionByAction(db, request.id),
+  );
 }
 
-export function agentRoutes(db: AppDatabase): Hono {
+async function readJsonBody<T>(
+  c: Context,
+): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
+  try {
+    return { ok: true, value: (await c.req.json()) as T };
+  } catch {
+    return {
+      ok: false,
+      response: c.json({ error: "Request body must be valid JSON" }, 400),
+    };
+  }
+}
+
+interface UpdatePolicyInput {
+  dailyLimit: number;
+  perTransactionLimit: number;
+  approvalThreshold: number;
+  denyThreshold: number;
+  allowedAssets?: string[];
+  allowedContracts?: string[];
+  allowedRecipients?: string[];
+}
+
+export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
   const routes = new Hono();
 
   routes.post("/", async (c) => {
-    const body = (await c.req.json()) as CreateAgentInput;
+    const parsed = await readJsonBody<CreateAgentInput>(c);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const errors = validateCreateAgentInput(body);
     if (errors.length > 0) {
       return c.json({ error: errors.join("; ") }, 400);
@@ -82,7 +102,7 @@ export function agentRoutes(db: AppDatabase): Hono {
     );
     const pendingApprovals = activity.filter(
       (item) =>
-        item?.policyDecision === "REQUIRE_APPROVAL" &&
+        item.policyDecision === "REQUIRE_APPROVAL" &&
         item.approvalStatus === "pending",
     );
 
@@ -91,6 +111,10 @@ export function agentRoutes(db: AppDatabase): Hono {
         ...presented,
         treasury: presented.policy.dailyLimit,
         spentToday: centsToDollars(spentTodayCents(db, agent.id)),
+      },
+      signer: {
+        mode: executor.mode,
+        fromAddress: executor.fromAddress,
       },
       permissions: describePermissions(presented.policy),
       pendingApprovals,
@@ -114,31 +138,23 @@ export function agentRoutes(db: AppDatabase): Hono {
       return c.json({ error: "Agent not found" }, 404);
     }
 
+    const parsed = await readJsonBody<ProposeActionInput>(c);
+    if (!parsed.ok) return parsed.response;
+
     let proposed;
     try {
-      proposed = proposeAction((await c.req.json()) as ProposeActionInput);
+      proposed = proposeAction(parsed.value);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid action";
       return c.json({ error: message }, 400);
     }
 
-    const evaluation = evaluateAction(proposed, agent.policy, {
-      spentTodayCents: spentTodayCents(db, agent.id),
-      agentStatus: agent.status,
-    });
-
-    const request = insertActionRequest(db, agent.id, proposed, evaluation);
-    if (evaluation.decision === "REQUIRE_APPROVAL") {
-      insertPendingApproval(db, request.id);
-    }
-
-    writeAudit(db, {
-      agentId: agent.id,
-      actionRequestId: request.id,
-      type: "policy.evaluated",
-      message: `Policy evaluation → ${evaluation.decision}`,
-      metadata: { code: evaluation.code, reason: evaluation.reason },
-    });
+    const { request, evaluation } = await submitAction(
+      db,
+      executor,
+      agent,
+      proposed,
+    );
 
     return c.json(
       {
@@ -177,12 +193,17 @@ export function agentRoutes(db: AppDatabase): Hono {
       return c.json({ error: authorization.reason }, 403);
     }
 
-    const body = (await c.req.json()) as { status?: string };
+    const parsedBody = await readJsonBody<{ status?: string }>(c);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.value;
     if (body.status !== "approved" && body.status !== "rejected") {
       return c.json({ error: "status must be approved or rejected" }, 400);
     }
 
-    const existing = insertPendingApproval(db, request.id);
+    const existing = getApprovalByAction(db, request.id);
+    if (!existing) {
+      return c.json({ error: "Approval record missing for this action" }, 500);
+    }
     if (existing.status !== "pending") {
       return c.json({ error: "This approval has already been decided" }, 409);
     }
@@ -198,7 +219,18 @@ export function agentRoutes(db: AppDatabase): Hono {
           : "Human rejected the action",
     });
 
-    return c.json(presentAction(request, approval));
+    if (body.status === "approved") {
+      await executeAuthorized(db, executor, agent, request, "approved");
+    } else {
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "execution.skipped",
+        message: "Rejected by human — never reached the signer",
+      });
+    }
+
+    return c.json(presentTrackedAction(db, request));
   });
 
   routes.get("/:id/actions", (c) => {
@@ -232,18 +264,26 @@ export function agentRoutes(db: AppDatabase): Hono {
       return c.json({ error: authorization.reason }, 403);
     }
 
-    const body = (await c.req.json()) as CreateAgentInput;
-    const input = {
-      ...body,
+    const parsed = await readJsonBody<UpdatePolicyInput>(c);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
+
+    const policyInput: CreateAgentInput = {
       name: agent.name,
+      dailyLimit: body.dailyLimit,
+      perTransactionLimit: body.perTransactionLimit,
+      approvalThreshold: body.approvalThreshold,
+      denyThreshold: body.denyThreshold,
       allowedAssets: body.allowedAssets ?? agent.policy.allowedAssets,
+      allowedContracts: body.allowedContracts ?? agent.policy.allowedContracts,
+      allowedRecipients: body.allowedRecipients ?? agent.policy.allowedRecipients,
     };
-    const errors = validateCreateAgentInput(input);
+    const errors = validateCreateAgentInput(policyInput);
     if (errors.length > 0) {
       return c.json({ error: errors.join("; ") }, 400);
     }
 
-    const updated = updateAgentPolicy(db, agent.id, createAgentPolicy(input));
+    const updated = updateAgentPolicy(db, agent.id, createAgentPolicy(policyInput));
     writeAudit(db, {
       agentId: agent.id,
       type: "policy.changed",

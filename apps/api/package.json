@@ -13,6 +13,7 @@
   "dependencies": {
     "@hono/node-server": "^1.14.1",
     "@privent/agent": "workspace:*",
+    "@privent/blockchain": "workspace:*",
     "@privent/policy-engine": "workspace:*",
     "@privent/shared": "workspace:*",
     "hono": "^4.7.5"

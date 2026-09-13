@@ -7,13 +7,16 @@ import {
   decideAction,
   fetchOverview,
   proposePayment,
+  type AuditEvent,
   type Overview,
   type PresentedAction,
 } from "../lib/api";
 import {
   decisionLabel,
+  explorerTxUrl,
   formatAddress,
   formatTime,
+  formatTxHash,
   formatUsd,
 } from "../lib/format";
 
@@ -129,7 +132,7 @@ export function Dashboard() {
       {load.status === "ok" && (
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <AgentCard agent={load.data.agent} />
+            <AgentCard agent={load.data.agent} signer={load.data.signer} />
             <PermissionsCard rows={load.data.permissions} />
           </div>
 
@@ -151,13 +154,20 @@ export function Dashboard() {
           />
 
           <ActivityCard items={load.data.activity} />
+          <AuditCard events={load.data.audit} />
         </div>
       )}
     </main>
   );
 }
 
-function AgentCard({ agent }: { agent: Overview["agent"] }) {
+function AgentCard({
+  agent,
+  signer,
+}: {
+  agent: Overview["agent"];
+  signer: Overview["signer"];
+}) {
   return (
     <section className="rounded-lg border border-line bg-surface p-5">
       <h2 className="text-sm text-mute">Agent</h2>
@@ -169,6 +179,15 @@ function AgentCard({ agent }: { agent: Overview["agent"] }) {
         <Row label="Owner" value={agent.owner ?? "—"} />
         <Row label="Identity" value={agent.ensName ?? "—"} mono />
         <Row label="Wallet" value={formatAddress(agent.walletAddress)} mono />
+        <Row
+          label="Signer"
+          value={
+            signer.mode === "testnet"
+              ? `Sepolia · ${formatAddress(signer.fromAddress)}`
+              : `Local · ${formatAddress(signer.fromAddress)}`
+          }
+          mono
+        />
         <Row label="Treasury" value={`${formatUsd(agent.treasury)} USDC`} />
         <Row label="Spent today" value={formatUsd(agent.spentToday)} />
         <Row

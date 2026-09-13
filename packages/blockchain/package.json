@@ -9,5 +9,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@privent/shared": "workspace:*",
+    "viem": "^2.31.7"
   }
 }
