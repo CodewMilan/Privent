@@ -122,7 +122,8 @@ export type PolicyReasonCode =
   | "EXCEEDS_DENY_THRESHOLD"
   | "EXCEEDS_PER_TRANSACTION_LIMIT"
   | "EXCEEDS_DAILY_LIMIT"
-  | "ACTOR_NOT_ALLOWED";
+  | "ACTOR_NOT_ALLOWED"
+  | "WALLET_POLICY_DENIED";
 
 export interface PolicyEvaluation {
   decision: PolicyDecision;

@@ -9,8 +9,9 @@ export function describePermissions(policy: {
   approvalThreshold: number;
   denyThreshold: number;
   allowedAssets: string[];
+  allowedRecipients?: string[];
 }): PermissionRow[] {
-  return [
+  const rows: PermissionRow[] = [
     { label: "Read treasury", state: "allowed" },
     { label: "Analyze markets", state: "allowed" },
     {
@@ -29,7 +30,23 @@ export function describePermissions(policy: {
       label: `Use ${policy.allowedAssets.join(", ") || "no assets"}`,
       state: policy.allowedAssets.length > 0 ? "allowed" : "denied",
     },
+  ];
+
+  if (policy.allowedRecipients && policy.allowedRecipients.length > 0) {
+    const count = policy.allowedRecipients.length;
+    rows.push({
+      label:
+        count === 1
+          ? "Send only to the allowlisted recipient"
+          : `Send only to ${count} allowlisted recipients`,
+      state: "allowed",
+    });
+  }
+
+  rows.push(
     { label: "Change permissions", state: "denied" },
     { label: "Export private key", state: "denied" },
-  ];
+  );
+
+  return rows;
 }

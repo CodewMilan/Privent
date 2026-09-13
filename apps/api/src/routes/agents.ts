@@ -7,6 +7,7 @@ import {
   validateCreateAgentInput,
 } from "@privent/agent";
 import { canApproveAction, canChangePolicy } from "@privent/policy-engine";
+import { intersectLimits, walletPolicyFromApp } from "@privent/privy";
 import {
   centsToDollars,
   describePermissions,
@@ -14,6 +15,7 @@ import {
   type CreateAgentInput,
   type ProposeActionInput,
 } from "@privent/shared";
+import type { AppServices } from "../app.js";
 import type { AppDatabase } from "../db/client.js";
 import { readActor } from "../http/actor.js";
 import { presentAction, presentAgent } from "../http/presenters.js";
@@ -30,8 +32,14 @@ import {
 } from "../repos/agents.js";
 import { decideApproval, getApprovalByAction } from "../repos/approvals.js";
 import { listAudit, writeAudit } from "../repos/audit.js";
+import { upsertControls } from "../repos/controls.js";
 import { getTransactionByAction } from "../repos/transactions.js";
 import { executeAuthorized, submitAction } from "../services/execute.js";
+import { describeIdentity } from "../services/identity.js";
+import {
+  getOrCreateControls,
+  syncControlsToApp,
+} from "../services/wallet.js";
 
 function presentTrackedAction(db: AppDatabase, request: ActionRequest) {
   return presentAction(
@@ -64,7 +72,13 @@ interface UpdatePolicyInput {
   allowedRecipients?: string[];
 }
 
-export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
+export function agentRoutes(
+  db: AppDatabase,
+  executor: Executor,
+  services: AppServices = {},
+): Hono {
+  const dashboardUrl = services.dashboardUrl ?? "http://localhost:3000";
+  const chainId = services.chainId ?? 11155111;
   const routes = new Hono();
 
   routes.post("/", async (c) => {
@@ -77,6 +91,7 @@ export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
     }
 
     const agent = insertAgent(db, createAgent(body));
+    upsertControls(db, agent.id, walletPolicyFromApp(agent.policy, chainId));
     writeAudit(db, {
       agentId: agent.id,
       type: "agent.created",
@@ -90,13 +105,20 @@ export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
     return c.json(listAgents(db).map(presentAgent));
   });
 
-  routes.get("/:id/overview", (c) => {
+  routes.get("/:id/overview", async (c) => {
     const agent = getAgent(db, c.req.param("id"));
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404);
     }
 
     const presented = presentAgent(agent);
+    const wallet = getOrCreateControls(db, agent, chainId);
+    const effective = intersectLimits(agent.policy, wallet);
+    const identity = await describeIdentity(
+      agent,
+      dashboardUrl,
+      services.ensReader,
+    );
     const activity = listActionRequests(db, agent.id).map((request) =>
       presentTrackedAction(db, request),
     );
@@ -116,7 +138,16 @@ export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
         mode: executor.mode,
         fromAddress: executor.fromAddress,
       },
-      permissions: describePermissions(presented.policy),
+      identity,
+      wallet: {
+        maxAuto: centsToDollars(wallet.maxAutoCents),
+        maxSend: centsToDollars(wallet.maxSendCents),
+        allowedRecipients: wallet.allowedRecipients,
+        exportPrivateKey: false,
+        privyPolicyId: wallet.privyPolicyId,
+      },
+      effective,
+      permissions: describePermissions(effective),
       pendingApprovals,
       activity,
       audit: listAudit(db, agent.id),
@@ -284,6 +315,9 @@ export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
     }
 
     const updated = updateAgentPolicy(db, agent.id, createAgentPolicy(policyInput));
+    if (updated) {
+      syncControlsToApp(db, updated, chainId);
+    }
     writeAudit(db, {
       agentId: agent.id,
       type: "policy.changed",

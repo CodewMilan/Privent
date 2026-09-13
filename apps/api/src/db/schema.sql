@@ -68,3 +68,15 @@ CREATE TABLE IF NOT EXISTS audit_events (
   metadata TEXT,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS agent_controls (
+  agent_id TEXT PRIMARY KEY,
+  max_auto_cents INTEGER NOT NULL,
+  max_send_cents INTEGER NOT NULL,
+  allowed_recipients TEXT NOT NULL,
+  export_private_key INTEGER NOT NULL DEFAULT 0,
+  chain_id INTEGER NOT NULL,
+  privy_policy_id TEXT,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (agent_id) REFERENCES agents(id)
+);

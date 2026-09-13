@@ -132,8 +132,21 @@ export function Dashboard() {
       {load.status === "ok" && (
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <AgentCard agent={load.data.agent} signer={load.data.signer} />
-            <PermissionsCard rows={load.data.permissions} />
+            <AgentCard
+              agent={load.data.agent}
+              signer={load.data.signer}
+              identity={load.data.identity}
+              effective={load.data.effective}
+            />
+            <PermissionsCard
+              rows={load.data.permissions}
+              walletTighter={
+                load.data.effective.approvalThreshold <
+                  load.data.agent.policy.approvalThreshold ||
+                load.data.effective.denyThreshold <
+                  load.data.agent.policy.denyThreshold
+              }
+            />
           </div>
 
           <ApprovalsCard
@@ -144,9 +157,8 @@ export function Dashboard() {
 
           <ProposeCard
             defaultRecipient={
-              load.data.agent.walletAddress
-                ? "0x2222222222222222222222222222222222222222"
-                : ""
+              load.data.effective.allowedRecipients[0] ??
+              "0x2222222222222222222222222222222222222222"
             }
             busy={busyId === "propose"}
             error={formError}
@@ -161,12 +173,33 @@ export function Dashboard() {
   );
 }
 
+function identityStatus(identity: Overview["identity"]): string {
+  switch (identity.agreement) {
+    case "match":
+      return "On-chain · records match";
+    case "mismatch":
+      return "On-chain · records differ";
+    case "name-not-found":
+      return "Not registered · records ready";
+    case "unpublished":
+      return "Not published on-chain";
+    case "error":
+      return "Lookup failed";
+    case "no-ens":
+      return "No ENS name";
+  }
+}
+
 function AgentCard({
   agent,
   signer,
+  identity,
+  effective,
 }: {
   agent: Overview["agent"];
   signer: Overview["signer"];
+  identity: Overview["identity"];
+  effective: Overview["effective"];
 }) {
   return (
     <section className="rounded-lg border border-line bg-surface p-5">
@@ -178,6 +211,12 @@ function AgentCard({
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
         <Row label="Owner" value={agent.owner ?? "—"} />
         <Row label="Identity" value={agent.ensName ?? "—"} mono />
+        <Row label="ENS status" value={identityStatus(identity)} />
+        <Row
+          label="Endpoint"
+          value={identity.published?.["agent-endpoint[web]"] ?? "—"}
+          mono
+        />
         <Row label="Wallet" value={formatAddress(agent.walletAddress)} mono />
         <Row
           label="Signer"
@@ -192,17 +231,32 @@ function AgentCard({
         <Row label="Spent today" value={formatUsd(agent.spentToday)} />
         <Row
           label="Auto limit"
-          value={`under ${formatUsd(agent.policy.approvalThreshold)}`}
+          value={`under ${formatUsd(effective.approvalThreshold)}`}
+        />
+        <Row
+          label="Key export"
+          value="Denied"
         />
       </dl>
     </section>
   );
 }
 
-function PermissionsCard({ rows }: { rows: PermissionRow[] }) {
+function PermissionsCard({
+  rows,
+  walletTighter,
+}: {
+  rows: PermissionRow[];
+  walletTighter: boolean;
+}) {
   return (
     <section className="rounded-lg border border-line bg-surface p-5">
       <h2 className="text-sm text-mute">Permissions</h2>
+      <p className="mt-1 text-xs text-mute">
+        {walletTighter
+          ? "Showing the wallet cap, which is tighter than the app policy."
+          : "App policy and wallet policy agree on these limits."}
+      </p>
       <ul className="mt-4 divide-y divide-line">
         {rows.map((row) => (
           <li

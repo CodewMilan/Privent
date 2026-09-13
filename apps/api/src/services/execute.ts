@@ -5,6 +5,10 @@ import {
 } from "@privent/blockchain";
 import { evaluateAction } from "@privent/policy-engine";
 import {
+  combineEvaluations,
+  evaluateWalletPolicy,
+} from "@privent/privy";
+import {
   formatDollars,
   type ActionRequest,
   type Agent,
@@ -21,6 +25,7 @@ import {
   getTransactionByAction,
   insertTransaction,
 } from "../repos/transactions.js";
+import { getOrCreateControls } from "./wallet.js";
 
 function permitFor(
   request: ActionRequest,
@@ -39,6 +44,17 @@ function permitFor(
   };
 }
 
+function proposedFrom(request: ActionRequest): ProposedAction {
+  return {
+    action: request.action,
+    asset: request.asset,
+    amountCents: request.amountCents,
+    recipient: request.recipient,
+    contract: request.contract,
+    reason: request.reason,
+  };
+}
+
 export async function executeAuthorized(
   db: AppDatabase,
   executor: Executor,
@@ -49,6 +65,21 @@ export async function executeAuthorized(
   const existing = getTransactionByAction(db, request.id);
   if (existing) {
     return existing;
+  }
+
+  const wallet = getOrCreateControls(db, agent);
+  const walletGate = evaluateWalletPolicy(proposedFrom(request), wallet, {
+    humanApproved: approvalStatus === "approved",
+  });
+  if (walletGate.decision === "DENY") {
+    writeAudit(db, {
+      agentId: agent.id,
+      actionRequestId: request.id,
+      type: "wallet.denied",
+      message: walletGate.reason,
+      metadata: { code: walletGate.code },
+    });
+    return null;
   }
 
   const permit = permitFor(request, approvalStatus);
@@ -112,10 +143,15 @@ export async function submitAction(
   agent: Agent,
   proposed: ProposedAction,
 ): Promise<{ request: ActionRequest; evaluation: PolicyEvaluation }> {
-  const evaluation = evaluateAction(proposed, agent.policy, {
+  const appEval = evaluateAction(proposed, agent.policy, {
     spentTodayCents: spentTodayCents(db, agent.id),
     agentStatus: agent.status,
   });
+  const wallet = getOrCreateControls(db, agent);
+  const walletEval = evaluateWalletPolicy(proposed, wallet, {
+    humanApproved: false,
+  });
+  const evaluation = combineEvaluations(appEval, walletEval);
 
   const request = insertActionRequest(db, agent.id, proposed, evaluation);
 
@@ -132,6 +168,13 @@ export async function submitAction(
     message: `Policy evaluation → ${evaluation.decision}`,
     metadata: { code: evaluation.code, reason: evaluation.reason },
   });
+  writeAudit(db, {
+    agentId: agent.id,
+    actionRequestId: request.id,
+    type: "wallet.evaluated",
+    message: `Wallet policy → ${walletEval.decision}`,
+    metadata: { code: walletEval.code, reason: walletEval.reason },
+  });
 
   if (evaluation.decision === "REQUIRE_APPROVAL") {
     insertPendingApproval(db, request.id);
@@ -146,7 +189,10 @@ export async function submitAction(
       agentId: agent.id,
       actionRequestId: request.id,
       type: "execution.skipped",
-      message: "Denied by policy — never reached the signer",
+      message:
+        evaluation.code === "WALLET_POLICY_DENIED"
+          ? "Denied by wallet policy — never reached the signer"
+          : "Denied by policy — never reached the signer",
     });
   } else {
     await executeAuthorized(db, executor, agent, request, null);

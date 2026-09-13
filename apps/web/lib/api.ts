@@ -54,6 +54,37 @@ export interface Overview {
     mode: "simulated" | "testnet";
     fromAddress: string;
   };
+  identity: {
+    ensName: string | null;
+    published: {
+      "agent-context"?: string;
+      "agent-endpoint[web]"?: string;
+    } | null;
+    onChain: {
+      status: string;
+      address: string | null;
+    } | null;
+    agreement:
+      | "no-ens"
+      | "unpublished"
+      | "name-not-found"
+      | "match"
+      | "mismatch"
+      | "error";
+  };
+  wallet: {
+    maxAuto: number;
+    maxSend: number;
+    allowedRecipients: string[];
+    exportPrivateKey: boolean;
+    privyPolicyId: string | null;
+  };
+  effective: {
+    approvalThreshold: number;
+    denyThreshold: number;
+    allowedAssets: string[];
+    allowedRecipients: string[];
+  };
   permissions: PermissionRow[];
   pendingApprovals: PresentedAction[];
   activity: PresentedAction[];

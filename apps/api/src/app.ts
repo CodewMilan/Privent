@@ -4,14 +4,27 @@ import {
   createSimulatedExecutor,
   type Executor,
 } from "@privent/blockchain";
+import type { EnsReader } from "@privent/ens";
+import type { PrivyClient } from "@privent/privy";
 import type { HealthResponse } from "@privent/shared";
 import { isDatabaseConnected, type AppDatabase } from "./db/client.js";
 import { agentRoutes } from "./routes/agents.js";
+import { ensureAgentControls } from "./services/wallet.js";
+
+export interface AppServices {
+  ensReader?: EnsReader;
+  privy?: PrivyClient;
+  dashboardUrl?: string;
+  chainId?: number;
+}
 
 export function createApp(
   db: AppDatabase,
   executor: Executor = createSimulatedExecutor(),
+  services: AppServices = {},
 ): Hono {
+  ensureAgentControls(db, services.chainId);
+
   const app = new Hono();
 
   app.use(
@@ -36,7 +49,7 @@ export function createApp(
     return c.json(body);
   });
 
-  app.route("/agents", agentRoutes(db, executor));
+  app.route("/agents", agentRoutes(db, executor, services));
 
   return app;
 }

@@ -9,6 +9,7 @@ const REQUIRED_TABLES = [
   "approvals",
   "transactions",
   "audit_events",
+  "agent_controls",
 ];
 
 describe("database", () => {
