@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@privent/shared": "workspace:*",
+    "framer-motion": "^13.2.0",
+    "lucide-react": "^1.45.0",
     "next": "^15.2.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
