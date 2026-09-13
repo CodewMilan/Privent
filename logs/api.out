@@ -1,0 +1,14 @@
+
+> @privent/api@0.0.1 start /Users/milan/Downloads/Privent/apps/api
+> tsx src/index.ts
+
+(node:83549) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+privent-api listening on http://localhost:3001
+signer mode: simulated from 0x1111111111111111111111111111111111111111
+high-risk: Ledger simulated · OFF for demo
+confidential: CRE nitro-sim · OFF for demo
+market: Graph gateway
+payments: Arc simulated · OFF for demo
+llm: openrouter · openai/gpt-4o-mini
+signer: isolated at http://127.0.0.1:3002 — API holds NO private key

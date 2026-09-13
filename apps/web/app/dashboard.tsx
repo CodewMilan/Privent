@@ -194,6 +194,7 @@ export function Dashboard() {
 
       {load.status === "ok" && (
         <div className="space-y-6">
+          <SecurityStrip demo={load.data.demo} market={load.data.market} />
           <div className="grid gap-6 lg:grid-cols-2">
             <AgentCard
               agent={load.data.agent}
@@ -286,6 +287,79 @@ function identityStatus(identity: Overview["identity"]): string {
     case "no-ens":
       return "No ENS name";
   }
+}
+
+function SecurityStrip({
+  demo,
+  market,
+}: {
+  demo: Overview["demo"];
+  market: Overview["market"];
+}) {
+  const items: Array<{ label: string; value: string; tone: "good" | "warn" | "off" }> =
+    [
+      { label: "AI key access", value: "NONE", tone: "good" },
+      { label: "Policy", value: "ENFORCED", tone: "good" },
+      {
+        label: "Signer",
+        value: demo.signer.isolated ? "ISOLATED" : "IN-PROCESS",
+        tone: demo.signer.isolated ? "good" : "warn",
+      },
+      {
+        label: "The Graph",
+        value:
+          market.status === "ok" && !market.simulated ? "LIVE" : "SIMULATED",
+        tone:
+          market.status === "ok" && !market.simulated ? "good" : "warn",
+      },
+      { label: "Sepolia", value: "LIVE", tone: "good" },
+      {
+        label: "Ledger",
+        value: demo.ledgerEnabled ? "ENABLED" : "not connected",
+        tone: demo.ledgerEnabled ? "good" : "off",
+      },
+      {
+        label: "Chainlink CRE",
+        value: demo.creEnabled ? "ENABLED" : "not connected",
+        tone: demo.creEnabled ? "good" : "off",
+      },
+      {
+        label: "Arc",
+        value: demo.arcEnabled ? "ENABLED" : "not connected",
+        tone: demo.arcEnabled ? "good" : "off",
+      },
+    ];
+  const toneClass = (t: "good" | "warn" | "off") =>
+    t === "good"
+      ? "text-allow"
+      : t === "warn"
+        ? "text-wait"
+        : "text-mute";
+  return (
+    <section className="rounded-lg border border-line bg-surface p-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-sm text-mute">Security posture</h2>
+        <p className="text-xs text-mute">
+          {demo.signer.isolated
+            ? `Signer runs as a separate process at ${demo.signer.endpoint}. The API has no private key.`
+            : `Signer is bundled in the API process (dev-only fallback). Set SIGNER_URL/SIGNER_TOKEN to isolate.`}
+        </p>
+      </div>
+      <ul className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-8">
+        {items.map((item) => (
+          <li
+            key={item.label}
+            className="rounded-md border border-line bg-bg px-3 py-2"
+          >
+            <p className="text-xs text-mute">{item.label}</p>
+            <p className={`text-sm font-medium ${toneClass(item.tone)}`}>
+              {item.value}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function AgentCard({

@@ -99,6 +99,11 @@ export interface Overview {
       kind: "openrouter" | "canned" | null;
       model: string | null;
     };
+    signer: {
+      isolated: boolean;
+      kind: "http" | "inline" | "local";
+      endpoint: string;
+    };
   };
   agentTurns: AgentTurn[];
   identity: {

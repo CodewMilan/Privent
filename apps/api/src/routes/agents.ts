@@ -107,6 +107,7 @@ export function agentRoutes(
     creEnabled: services.creEnabled,
     graph: services.graph,
     arc: services.arc,
+    signer: services.signer ?? null,
   });
   const arcEnabled = services.arcEnabled ?? false;
   const llm = services.llm ?? null;
@@ -207,6 +208,13 @@ export function agentRoutes(
         llm: llm
           ? { enabled: true, kind: llm.kind, model: llm.model }
           : { enabled: false, kind: null, model: null },
+        signer: execute.signer
+          ? {
+              isolated: execute.signer.isolated,
+              kind: execute.signer.kind,
+              endpoint: execute.signer.endpoint,
+            }
+          : { isolated: false, kind: "local", endpoint: "in-process" },
       },
       identity,
       wallet: {

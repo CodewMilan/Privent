@@ -7,6 +7,7 @@ import { createArcFromEnv } from "@privent/arc";
 import { createExecutorFromEnv } from "@privent/blockchain";
 import { DEMO_PRIVATE_STRATEGY } from "@privent/chainlink";
 import { createViemEnsReader } from "@privent/ens";
+import { createHttpSignerClient } from "./services/signer-client.js";
 import { createGraphFromEnv } from "@privent/graph";
 import { createLedgerFromEnv } from "@privent/ledger";
 import { createHttpPrivyClient } from "@privent/privy";
@@ -36,11 +37,27 @@ const dashboardUrl = process.env.WEB_URL ?? "http://localhost:3000";
 const db = openDatabase(databasePath);
 migrate(db);
 
+// The API process no longer constructs a real signer. It only holds a
+// simulated executor as a "no signer configured" fallback and delegates
+// every real broadcast to the isolated signer process over HTTP.
 const executor = createExecutorFromEnv();
 const ledger = createLedgerFromEnv();
 const graph = createGraphFromEnv();
 const arc = createArcFromEnv();
 const llm = createLlmAgentFromEnv();
+
+const signerUrl = process.env.SIGNER_URL;
+const signerToken = process.env.SIGNER_TOKEN;
+const signer =
+  signerUrl && signerToken
+    ? createHttpSignerClient({ endpoint: signerUrl, bearerToken: signerToken })
+    : null;
+
+if (process.env.EXECUTOR_PRIVATE_KEY) {
+  console.warn(
+    "[api] WARNING: EXECUTOR_PRIVATE_KEY is set in the API process. For real isolation, move it to apps/signer/.env and unset it here.",
+  );
+}
 
 // Live demo defaults: only the pieces that are actually real in this
 // environment run. Anything unproven is OFF unless explicitly enabled.
@@ -67,6 +84,7 @@ const services = {
   arc,
   arcEnabled,
   llm,
+  signer,
 };
 
 await seedDemoIfEmpty(db, executor, services, { seedSamplePayments: false });
@@ -97,5 +115,10 @@ serve({ fetch: app.fetch, port }, (info) => {
   );
   console.log(
     `llm: ${llm ? `${llm.kind} · ${llm.model}` : "not configured"}`,
+  );
+  console.log(
+    signer
+      ? `signer: isolated at ${signer.endpoint} — API holds NO private key`
+      : `signer: NOT configured (SIGNER_URL/SIGNER_TOKEN missing) — falling back to in-process executor. Set them for real isolation.`,
   );
 });

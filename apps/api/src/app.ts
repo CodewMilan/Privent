@@ -15,6 +15,7 @@ import type { HealthResponse } from "@privent/shared";
 import { isDatabaseConnected, type AppDatabase } from "./db/client.js";
 import { agentRoutes } from "./routes/agents.js";
 import { defaultExecuteServices } from "./services/execute.js";
+import type { SignerClient } from "./services/signer-client.js";
 import { ensureAgentControls } from "./services/wallet.js";
 
 export interface AppServices {
@@ -30,6 +31,7 @@ export interface AppServices {
   arc?: ArcPayer;
   arcEnabled?: boolean;
   llm?: LlmAgent | null;
+  signer?: SignerClient | null;
 }
 
 export function createApp(
@@ -45,6 +47,7 @@ export function createApp(
     creEnabled: services.creEnabled,
     graph: services.graph,
     arc: services.arc,
+    signer: services.signer ?? null,
   });
   const resolved: AppServices = {
     ...services,
@@ -56,6 +59,7 @@ export function createApp(
     arc: execute.arc,
     arcEnabled: services.arcEnabled ?? false,
     llm: services.llm ?? null,
+    signer: execute.signer,
   };
 
   const app = new Hono();

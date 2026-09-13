@@ -1,29 +1,24 @@
 {
-  "name": "@privent/api",
+  "name": "@privent/signer",
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",
-    "@privent/agent": "workspace:*",
-    "@privent/agent-llm": "workspace:*",
-    "@privent/arc": "workspace:*",
     "@privent/blockchain": "workspace:*",
-    "@privent/chainlink": "workspace:*",
-    "@privent/ens": "workspace:*",
-    "@privent/graph": "workspace:*",
-    "@privent/ledger": "workspace:*",
     "@privent/policy-engine": "workspace:*",
     "@privent/privy": "workspace:*",
     "@privent/shared": "workspace:*",
-    "@privent/signer": "workspace:*",
     "hono": "^4.7.5"
   },
   "devDependencies": {

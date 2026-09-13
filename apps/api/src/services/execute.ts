@@ -10,6 +10,7 @@ import {
   type ExecutionResult,
   type Executor,
 } from "@privent/blockchain";
+import type { SignerClient } from "./signer-client.js";
 import {
   DEMO_PRIVATE_STRATEGY,
   assertNoPrivateLeak,
@@ -58,6 +59,7 @@ export interface ExecuteServices {
   creEnabled: boolean;
   graph: GraphClient;
   arc: ArcPayer;
+  signer: SignerClient | null;
 }
 
 export function defaultExecuteServices(
@@ -70,6 +72,7 @@ export function defaultExecuteServices(
     creEnabled: overrides.creEnabled ?? true,
     graph: overrides.graph ?? createStaticGraphClient(HEALTHY_DEMO_PULSE),
     arc: overrides.arc ?? createSimulatedArcPayer(),
+    signer: overrides.signer ?? null,
   };
 }
 
@@ -185,14 +188,51 @@ export async function executeAuthorized(
     message:
       request.action === "PAYMENT"
         ? "Handing authorized payment to Arc"
-        : "Handing authorized action to the signer",
+        : services.signer
+          ? `Handing authorized action to isolated signer (${services.signer.endpoint})`
+          : "Handing authorized action to the local executor",
+    metadata:
+      request.action === "PAYMENT"
+        ? undefined
+        : {
+            signerKind: services.signer?.kind ?? "local",
+            signerIsolated: services.signer?.isolated ?? false,
+            signerEndpoint: services.signer?.endpoint ?? null,
+          },
   });
 
-  const result =
-    request.action === "PAYMENT"
-      ? await settleArc(services.arc, request)
-      : await executor.send(permit);
-  const tx = insertTransaction(db, request.id, result);
+  let result: ExecutionResult;
+  let tx: ChainTransaction | null;
+  if (request.action === "PAYMENT") {
+    result = await settleArc(services.arc, request);
+    tx = insertTransaction(db, request.id, result);
+  } else if (services.signer) {
+    const signed = await services.signer.sign({
+      actionRequestId: request.id,
+      agentId: agent.id,
+    });
+    if (!signed.ok) {
+      writeAudit(db, {
+        agentId: agent.id,
+        actionRequestId: request.id,
+        type: "signer.refused",
+        message: signed.reason,
+        metadata: { code: signed.code, httpStatus: signed.httpStatus },
+      });
+      return null;
+    }
+    result = signed.result;
+    // The signer owns the transactions row (reserved + updated inside its
+    // process). Re-read it so the API returns fresh state.
+    tx = getTransactionByAction(db, request.id);
+    if (!tx) {
+      // Extremely defensive: signer said ok but row is missing.
+      tx = insertTransaction(db, request.id, result);
+    }
+  } else {
+    result = await executor.send(permit);
+    tx = insertTransaction(db, request.id, result);
+  }
 
   if (result.hash) {
     const paid = request.action === "PAYMENT";
