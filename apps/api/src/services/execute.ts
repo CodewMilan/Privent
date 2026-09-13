@@ -53,7 +53,9 @@ import { getOrCreateControls } from "./wallet.js";
 
 export interface ExecuteServices {
   ledger: LedgerSigner;
+  ledgerEnabled: boolean;
   creStrategy: PrivateStrategy;
+  creEnabled: boolean;
   graph: GraphClient;
   arc: ArcPayer;
 }
@@ -63,7 +65,9 @@ export function defaultExecuteServices(
 ): ExecuteServices {
   return {
     ledger: overrides.ledger ?? createSimulatedLedger(),
+    ledgerEnabled: overrides.ledgerEnabled ?? true,
     creStrategy: overrides.creStrategy ?? DEMO_PRIVATE_STRATEGY,
+    creEnabled: overrides.creEnabled ?? true,
     graph: overrides.graph ?? createStaticGraphClient(HEALTHY_DEMO_PULSE),
     arc: overrides.arc ?? createSimulatedArcPayer(),
   };
@@ -147,7 +151,7 @@ export async function executeAuthorized(
     return null;
   }
 
-  if (request.policyDecision === "REQUIRE_APPROVAL") {
+  if (request.policyDecision === "REQUIRE_APPROVAL" && services.ledgerEnabled) {
     const device = getDeviceConfirmation(db, request.id);
     if (!device || device.status !== "confirmed") {
       writeAudit(db, {
@@ -241,18 +245,25 @@ export async function submitAction(
   const walletEval = evaluateWalletPolicy(proposed, wallet, {
     humanApproved: false,
   });
-  const confidential = runTreasuryRiskWorkflow(proposed, services.creStrategy);
-  assertNoPrivateLeak(confidential.evaluation, services.creStrategy);
-  assertNoPrivateLeak(confidential.report, services.creStrategy);
+
+  const confidential = services.creEnabled
+    ? runTreasuryRiskWorkflow(proposed, services.creStrategy)
+    : null;
+  if (confidential) {
+    assertNoPrivateLeak(confidential.evaluation, services.creStrategy);
+    assertNoPrivateLeak(confidential.report, services.creStrategy);
+  }
 
   const pulse = await services.graph.readPulse();
   const graphEval = evaluateProtocolPulse(proposed, pulse);
 
   const evaluation = combineEvaluations(
-    combineEvaluations(
-      combineEvaluations(appEval, walletEval),
-      confidential.evaluation,
-    ),
+    confidential
+      ? combineEvaluations(
+          combineEvaluations(appEval, walletEval),
+          confidential.evaluation,
+        )
+      : combineEvaluations(appEval, walletEval),
     graphEval,
   );
 
@@ -278,22 +289,23 @@ export async function submitAction(
     message: `Wallet policy → ${walletEval.decision}`,
     metadata: { code: walletEval.code, reason: walletEval.reason },
   });
-  const confidentialAudit = {
-    code: confidential.evaluation.code,
-    reason: confidential.evaluation.reason,
-    tee: confidential.report.tee,
-    simulated: confidential.simulated,
-    attestation: confidential.report.attestation,
-  };
-  assertNoPrivateLeak(confidentialAudit, services.creStrategy);
-
-  writeAudit(db, {
-    agentId: agent.id,
-    actionRequestId: request.id,
-    type: "confidential.evaluated",
-    message: `Confidential workflow → ${confidential.evaluation.decision}`,
-    metadata: confidentialAudit,
-  });
+  if (confidential) {
+    const confidentialAudit = {
+      code: confidential.evaluation.code,
+      reason: confidential.evaluation.reason,
+      tee: confidential.report.tee,
+      simulated: confidential.simulated,
+      attestation: confidential.report.attestation,
+    };
+    assertNoPrivateLeak(confidentialAudit, services.creStrategy);
+    writeAudit(db, {
+      agentId: agent.id,
+      actionRequestId: request.id,
+      type: "confidential.evaluated",
+      message: `Confidential workflow → ${confidential.evaluation.decision}`,
+      metadata: confidentialAudit,
+    });
+  }
   writeAudit(db, {
     agentId: agent.id,
     actionRequestId: request.id,

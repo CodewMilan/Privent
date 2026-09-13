@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import type { AgentContext } from "@privent/agent-llm";
 import type { Executor } from "@privent/blockchain";
 import {
   createAgent,
@@ -12,6 +13,7 @@ import {
   centsToDollars,
   describePermissions,
   type ActionRequest,
+  type AuditEvent,
   type CreateAgentInput,
   type ProposeActionInput,
 } from "@privent/shared";
@@ -72,6 +74,15 @@ async function readJsonBody<T>(
   }
 }
 
+function pickString(
+  metadata: AuditEvent["metadata"],
+  key: string,
+): string | null {
+  if (!metadata) return null;
+  const value = metadata[key];
+  return typeof value === "string" ? value : null;
+}
+
 interface UpdatePolicyInput {
   dailyLimit: number;
   perTransactionLimit: number;
@@ -91,10 +102,14 @@ export function agentRoutes(
   const chainId = services.chainId ?? 11155111;
   const execute = defaultExecuteServices({
     ledger: services.ledger,
+    ledgerEnabled: services.ledgerEnabled,
     creStrategy: services.creStrategy,
+    creEnabled: services.creEnabled,
     graph: services.graph,
     arc: services.arc,
   });
+  const arcEnabled = services.arcEnabled ?? false;
+  const llm = services.llm ?? null;
   const routes = new Hono();
 
   routes.post("/", async (c) => {
@@ -151,6 +166,17 @@ export function agentRoutes(
     );
 
     const pulse = await execute.graph.readPulse();
+    const audit = listAudit(db, agent.id);
+    const agentTurns = audit
+      .filter((event) => event.type === "agent.proposed")
+      .map((event) => ({
+        id: event.id,
+        actionRequestId: event.actionRequestId,
+        instruction: pickString(event.metadata, "instruction"),
+        model: pickString(event.metadata, "model"),
+        rawContent: pickString(event.metadata, "rawContent"),
+        createdAt: event.createdAt,
+      }));
 
     return c.json({
       agent: {
@@ -174,6 +200,14 @@ export function agentRoutes(
         simulated: execute.arc.kind === "simulated",
         briefCents: 2,
       },
+      demo: {
+        ledgerEnabled: execute.ledgerEnabled,
+        creEnabled: execute.creEnabled,
+        arcEnabled,
+        llm: llm
+          ? { enabled: true, kind: llm.kind, model: llm.model }
+          : { enabled: false, kind: null, model: null },
+      },
       identity,
       wallet: {
         maxAuto: centsToDollars(wallet.maxAutoCents),
@@ -187,7 +221,8 @@ export function agentRoutes(
       pendingApprovals,
       waitingForLedger,
       activity,
-      audit: listAudit(db, agent.id),
+      audit,
+      agentTurns,
     });
   });
 
@@ -289,7 +324,11 @@ export function agentRoutes(
     });
 
     if (body.status === "approved") {
-      await queueLedgerConfirmation(db, execute, agent, request);
+      if (execute.ledgerEnabled) {
+        await queueLedgerConfirmation(db, execute, agent, request);
+      } else {
+        await executeAuthorized(db, executor, agent, request, "approved", execute);
+      }
     } else {
       writeAudit(db, {
         agentId: agent.id,
@@ -303,6 +342,12 @@ export function agentRoutes(
   });
 
   routes.post("/:id/actions/:actionId/ledger", async (c) => {
+    if (!execute.ledgerEnabled) {
+      return c.json(
+        { error: "Ledger is not connected in this demo" },
+        400,
+      );
+    }
     const agent = getAgent(db, c.req.param("id"));
     if (!agent) {
       return c.json({ error: "Agent not found" }, 404);

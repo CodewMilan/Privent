@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import type { LlmAgent } from "@privent/agent-llm";
 import type { ArcPayer } from "@privent/arc";
 import {
   createSimulatedExecutor,
@@ -22,9 +23,13 @@ export interface AppServices {
   dashboardUrl?: string;
   chainId?: number;
   ledger?: LedgerSigner;
+  ledgerEnabled?: boolean;
   creStrategy?: PrivateStrategy;
+  creEnabled?: boolean;
   graph?: GraphClient;
   arc?: ArcPayer;
+  arcEnabled?: boolean;
+  llm?: LlmAgent | null;
 }
 
 export function createApp(
@@ -35,16 +40,22 @@ export function createApp(
   ensureAgentControls(db, services.chainId);
   const execute = defaultExecuteServices({
     ledger: services.ledger,
+    ledgerEnabled: services.ledgerEnabled,
     creStrategy: services.creStrategy,
+    creEnabled: services.creEnabled,
     graph: services.graph,
     arc: services.arc,
   });
   const resolved: AppServices = {
     ...services,
     ledger: execute.ledger,
+    ledgerEnabled: execute.ledgerEnabled,
     creStrategy: execute.creStrategy,
+    creEnabled: execute.creEnabled,
     graph: execute.graph,
     arc: execute.arc,
+    arcEnabled: services.arcEnabled ?? false,
+    llm: services.llm ?? null,
   };
 
   const app = new Hono();
