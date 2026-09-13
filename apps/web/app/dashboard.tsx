@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import Link from "next/link";
 import type { PermissionRow } from "@privent/shared";
 import {
   askAgent,
@@ -31,9 +30,9 @@ type LoadState =
   | { status: "ok"; data: Overview };
 
 const fieldClass =
-  "mt-1 w-full rounded-md border border-line bg-bg px-3 py-2 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brass";
+  "mt-2 w-full rounded-none border border-line bg-surface px-3 py-2.5 text-ink outline-none focus-visible:ring-2 focus-visible:ring-brass";
 const buttonClass =
-  "inline-flex min-h-10 items-center justify-center rounded-md px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-brass focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-50";
+  "inline-flex min-h-10 items-center justify-center rounded-none px-4 text-sm uppercase tracking-[0.08em] outline-none focus-visible:ring-2 focus-visible:ring-brass focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-50";
 
 const AGENT_SCENARIOS: Array<{
   id: string;
@@ -160,32 +159,19 @@ export function Dashboard() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-6 lg:px-8">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs tracking-[0.22em] text-brass uppercase">
-            Treasury desk
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Privent</h1>
-          <p className="mt-2 max-w-xl text-mute">
-            The AI proposes. Policy decides. A secure signer executes. The
-            agent never holds a key.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <Link
-            href="/"
-            className="text-sm text-brass underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-brass"
-          >
-            Back to site
-          </Link>
-          <p className="text-sm text-mute">Signed in as Acme Finance</p>
-        </div>
+    <main className="desk">
+      <header className="desk-header">
+        <p className="kicker">Live treasury desk · Sepolia</p>
+        <h1>Privent · Acme Finance</h1>
+        <p>
+          The AI proposes. Policy decides. A separate signer process executes.
+          The agent never holds a key.
+        </p>
       </header>
 
       {load.status === "loading" && <Skeleton />}
       {load.status === "error" && (
-        <section className="rounded-lg border border-line bg-surface p-6">
+        <section className="border border-line bg-surface p-6">
           <h2 className="text-lg font-medium">Dashboard unavailable</h2>
           <p className="mt-2 text-mute">{load.message}</p>
           <button
@@ -202,9 +188,9 @@ export function Dashboard() {
       )}
 
       {load.status === "ok" && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           <SecurityStrip demo={load.data.demo} market={load.data.market} />
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-2">
             <AgentCard
               agent={load.data.agent}
               signer={load.data.signer}
@@ -223,7 +209,7 @@ export function Dashboard() {
             />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-2">
             <MarketCard market={load.data.market} />
             <AgentConsole
               demo={load.data.demo}
@@ -345,23 +331,21 @@ function SecurityStrip({
         ? "text-wait"
         : "text-mute";
   return (
-    <section className="rounded-lg border border-line bg-surface p-4">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm text-mute">Security posture</h2>
-        <p className="text-xs text-mute">
-          {demo.signer.isolated
-            ? `Signer runs as a separate process at ${demo.signer.endpoint}. The API has no private key.`
-            : `Signer is bundled in the API process (dev-only fallback). Set SIGNER_URL/SIGNER_TOKEN to isolate.`}
-        </p>
-      </div>
-      <ul className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-8">
+    <section className="border border-line bg-surface p-6">
+      <h2 className="text-sm text-mute">Security posture</h2>
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-mute">
+        {demo.signer.isolated
+          ? `Signer runs as a separate process at ${demo.signer.endpoint}. The API has no private key.`
+          : `Signer is bundled in the API process (dev-only fallback). Set SIGNER_URL/SIGNER_TOKEN to isolate.`}
+      </p>
+      <ul className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-8">
         {items.map((item) => (
           <li
             key={item.label}
-            className="rounded-md border border-line bg-bg px-3 py-2"
+            className="border border-line bg-bg px-3 py-3"
           >
-            <p className="text-xs text-mute">{item.label}</p>
-            <p className={`text-sm font-medium ${toneClass(item.tone)}`}>
+            <p className="text-xs leading-relaxed text-mute">{item.label}</p>
+            <p className={`mt-2 text-sm ${toneClass(item.tone)}`}>
               {item.value}
             </p>
           </li>
@@ -385,7 +369,7 @@ function AgentCard({
   demo: Overview["demo"];
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Agent</h2>
       <div className="mt-3 flex items-baseline justify-between gap-4">
         <h3 className="text-xl font-medium">{agent.name}</h3>
@@ -448,7 +432,7 @@ function PermissionsCard({
   walletTighter: boolean;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Permissions</h2>
       <p className="mt-1 text-xs text-mute">
         {walletTighter
@@ -489,7 +473,7 @@ function marketVote(market: Overview["market"]): string {
 function MarketCard({ market }: { market: Overview["market"] }) {
   const vote = marketVote(market);
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Live protocol data</h2>
       <p className="mt-1 text-xs text-mute">
         {market.simulated
@@ -539,7 +523,7 @@ function AgentConsole({
   lastTurn: AgentTurn | null;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">AI agent</h2>
       <p className="mt-1 text-xs text-mute">
         {demo.llm.enabled
@@ -550,7 +534,7 @@ function AgentConsole({
         {AGENT_SCENARIOS.map((scenario) => (
           <div
             key={scenario.id}
-            className="rounded-md border border-line bg-raised p-3"
+            className="rounded-none border border-line bg-raised p-3"
           >
             <p className="text-sm">{scenario.label}</p>
             <p className="mt-1 text-xs text-mute">{scenario.hint}</p>
@@ -567,7 +551,7 @@ function AgentConsole({
       </div>
       {error && <p className="mt-3 text-sm text-deny">{error}</p>}
       {lastTurn && (
-        <div className="mt-4 rounded-md border border-line bg-bg p-3">
+        <div className="mt-4 rounded-none border border-line bg-bg p-3">
           <p className="text-xs text-mute">
             Last AI proposal · {lastTurn.model ?? "unknown model"} ·{" "}
             {formatTime(lastTurn.createdAt)}
@@ -598,7 +582,7 @@ function LedgerCard({
   onLedger: (id: string, status: "confirmed" | "rejected") => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Waiting for Ledger</h2>
       {items.length === 0 ? (
         <p className="mt-4 text-mute">
@@ -607,7 +591,7 @@ function LedgerCard({
       ) : (
         <ul className="mt-4 space-y-4">
           {items.map((item) => (
-            <li key={item.id} className="rounded-md border border-line bg-raised p-4">
+            <li key={item.id} className="rounded-none border border-line bg-raised p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-mono text-lg">
                   {formatUsd(item.amount)} {item.asset}
@@ -654,7 +638,7 @@ function ApprovalsCard({
   onDecide: (id: string, status: "approved" | "rejected") => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Needs your approval</h2>
       {items.length === 0 ? (
         <p className="mt-4 text-mute">
@@ -663,7 +647,7 @@ function ApprovalsCard({
       ) : (
         <ul className="mt-4 space-y-4">
           {items.map((item) => (
-            <li key={item.id} className="rounded-md border border-line bg-raised p-4">
+            <li key={item.id} className="rounded-none border border-line bg-raised p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-mono text-lg">
                   {formatUsd(item.amount)} {item.asset}
@@ -715,7 +699,7 @@ function ProposeCard({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Manual proposal (fallback)</h2>
       <p className="mt-1 text-xs text-mute">
         Same policy path as the AI, but you fill it in yourself. Useful if the
@@ -779,7 +763,7 @@ function ActivityCard({
   turnsByActionId: Record<string, AgentTurn>;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Activity</h2>
       {items.length === 0 ? (
         <p className="mt-4 text-mute">
@@ -892,7 +876,7 @@ function TxLine({ item }: { item: PresentedAction }) {
 
 function AuditCard({ events }: { events: AuditEvent[] }) {
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section className="border border-line bg-surface p-6">
       <h2 className="text-sm text-mute">Audit trail</h2>
       {events.length === 0 ? (
         <p className="mt-4 text-mute">No events yet.</p>
@@ -934,9 +918,9 @@ function Row({
 function Skeleton() {
   return (
     <div className="grid gap-6 lg:grid-cols-2" aria-hidden>
-      <div className="h-64 animate-pulse rounded-lg bg-surface" />
-      <div className="h-64 animate-pulse rounded-lg bg-surface" />
-      <div className="h-40 animate-pulse rounded-lg bg-surface lg:col-span-2" />
+      <div className="h-64 animate-pulse border border-line bg-surface" />
+      <div className="h-64 animate-pulse border border-line bg-surface" />
+      <div className="h-40 animate-pulse border border-line bg-surface lg:col-span-2" />
     </div>
   );
 }

@@ -1,23 +1,45 @@
 @import "tailwindcss";
 
+/* =================================================================
+   Design tokens — used by the dashboard via Tailwind utilities.
+   Landing page uses inline Tailwind classes from the Figma reference.
+   ================================================================= */
+
 @theme {
-  --color-bg: #0c0d0f;
-  --color-surface: #141517;
-  --color-raised: #1b1c1f;
-  --color-line: #2d2e32;
-  --color-ink: #ece8e1;
-  --color-mute: #b4aea4;
-  --color-brass: #c4a574;
-  --color-allow: #8fbf7a;
-  --color-wait: #d4b562;
-  --color-deny: #d27a70;
-  --font-sans: var(--font-ibm-sans), "Segoe UI", sans-serif;
-  --font-mono: var(--font-ibm-mono), ui-monospace, monospace;
+  --color-bg: #ffffff;
+  --color-mint: #dceeeb;
+  --color-surface: #f0f1f2;
+  --color-raised: #e8ebed;
+  --color-line: #d1d2d5;
+  --color-ink: #181e15;
+  --color-mute: #6c706b;
+  --color-purple: #c190ff;
+  --color-green: #89ff75;
+  --color-teal: #18f0bf;
+  --color-allow: #1a7f3a;
+  --color-wait: #9a6b12;
+  --color-deny: #c0392b;
+  /* Backward-compat alias used by dashboard */
+  --color-brass: var(--color-purple);
+  /* Figma font variables (set by next/font via CSS --font-* vars) */
+  --font-sans: var(--font-radio-canada), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-pixel: var(--font-pixel), ui-monospace, monospace;
 }
 
+:root {
+  color-scheme: light;
+}
+
+html,
 body {
   margin: 0;
+  padding: 0;
   min-height: 100vh;
+  background: #ffffff;
+  color: #000000;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @media (prefers-reduced-motion: reduce) {
