@@ -1,0 +1,34 @@
+{
+  "name": "privent",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @privent/api --filter @privent/web dev",
+    "dev:api": "pnpm --filter @privent/api dev",
+    "dev:web": "pnpm --filter @privent/web dev",
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "@privent/agent": "workspace:*",
+    "@privent/arc": "workspace:*",
+    "@privent/blockchain": "workspace:*",
+    "@privent/chainlink": "workspace:*",
+    "@privent/ens": "workspace:*",
+    "@privent/graph": "workspace:*",
+    "@privent/ledger": "workspace:*",
+    "@privent/policy-engine": "workspace:*",
+    "@privent/privy": "workspace:*",
+    "eslint": "^9.24.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.29.1",
+    "vitest": "^3.1.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
