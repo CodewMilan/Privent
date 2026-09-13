@@ -43,7 +43,7 @@ export function writeAudit(
 export function listAudit(db: AppDatabase, agentId: string): AuditEvent[] {
   const rows = db
     .prepare(
-      "SELECT * FROM audit_events WHERE agent_id = ? ORDER BY created_at DESC",
+      "SELECT * FROM audit_events WHERE agent_id = ? ORDER BY created_at ASC, rowid ASC",
     )
     .all(agentId) as unknown as AuditRow[];
 

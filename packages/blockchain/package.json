@@ -13,5 +13,9 @@
   "dependencies": {
     "@privent/shared": "workspace:*",
     "viem": "^2.31.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3"
   }
 }

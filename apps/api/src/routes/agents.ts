@@ -208,7 +208,7 @@ export function agentRoutes(db: AppDatabase, executor: Executor): Hono {
       return c.json({ error: "This approval has already been decided" }, 409);
     }
 
-    const approval = decideApproval(db, request.id, body.status, actor.id);
+    decideApproval(db, request.id, body.status, actor.id);
     writeAudit(db, {
       agentId: agent.id,
       actionRequestId: request.id,

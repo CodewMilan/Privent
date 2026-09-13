@@ -90,7 +90,7 @@ export function listActionRequests(
 ): ActionRequest[] {
   const rows = db
     .prepare(
-      "SELECT * FROM action_requests WHERE agent_id = ? ORDER BY created_at DESC",
+      "SELECT * FROM action_requests WHERE agent_id = ? ORDER BY created_at DESC, rowid DESC",
     )
     .all(agentId) as unknown as ActionRow[];
   return rows.map(toAction);

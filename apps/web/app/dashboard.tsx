@@ -355,14 +355,20 @@ function ActivityCard({ items }: { items: PresentedAction[] }) {
                 </p>
                 <p
                   className={`text-sm ${tone(
-                    item.approvalStatus === "rejected"
+                    item.txStatus === "failed" || item.approvalStatus === "rejected"
                       ? "DENY"
-                      : item.approvalStatus === "approved"
+                      : item.txStatus === "confirmed" || item.txStatus === "broadcast"
                         ? "ALLOW"
-                        : item.policyDecision,
+                        : item.approvalStatus === "approved"
+                          ? "ALLOW"
+                          : item.policyDecision,
                   )}`}
                 >
-                  {decisionLabel(item.policyDecision, item.approvalStatus)}
+                  {decisionLabel(
+                    item.policyDecision,
+                    item.approvalStatus,
+                    item.txStatus,
+                  )}
                 </p>
               </div>
               <p className="mt-1 text-sm">{item.reason}</p>
@@ -370,9 +376,69 @@ function ActivityCard({ items }: { items: PresentedAction[] }) {
               <p className="mt-1 font-mono text-xs text-mute">
                 {formatTime(item.createdAt)} · {formatAddress(item.recipient)}
               </p>
+              <TxLine item={item} />
             </li>
           ))}
         </ul>
+      )}
+    </section>
+  );
+}
+
+function TxLine({ item }: { item: PresentedAction }) {
+  if (item.policyDecision === "DENY") {
+    return (
+      <p className="mt-1 text-xs text-mute">Never sent — policy denied it.</p>
+    );
+  }
+  if (item.approvalStatus === "rejected") {
+    return (
+      <p className="mt-1 text-xs text-mute">Never sent — you rejected it.</p>
+    );
+  }
+  if (!item.txHash) {
+    return null;
+  }
+
+  const href = explorerTxUrl(item.txHash, item.txMode);
+  const label =
+    item.txMode === "testnet" ? formatTxHash(item.txHash) : `${formatTxHash(item.txHash)} · local`;
+
+  if (href) {
+    return (
+      <p className="mt-1 font-mono text-xs">
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="text-brass underline-offset-2 hover:underline"
+        >
+          {label}
+        </a>
+      </p>
+    );
+  }
+
+  return <p className="mt-1 font-mono text-xs text-mute">{label}</p>;
+}
+
+function AuditCard({ events }: { events: AuditEvent[] }) {
+  return (
+    <section className="rounded-lg border border-line bg-surface p-5">
+      <h2 className="text-sm text-mute">Audit trail</h2>
+      {events.length === 0 ? (
+        <p className="mt-4 text-mute">No events yet.</p>
+      ) : (
+        <ol className="mt-4 space-y-3">
+          {events.map((event) => (
+            <li key={event.id} className="flex gap-3 text-sm">
+              <time className="w-24 shrink-0 font-mono text-xs text-mute">
+                {formatTime(event.createdAt)}
+              </time>
+              <span>{event.message}</span>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
