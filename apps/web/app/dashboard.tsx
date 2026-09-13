@@ -188,7 +188,6 @@ export function Dashboard() {
   return (
     <main className="desk">
       <header className="desk-header">
-        <p className="kicker">Live desk · Sepolia · no mocks</p>
         <h1>
           Treasury control,
           <span>running in the open</span>

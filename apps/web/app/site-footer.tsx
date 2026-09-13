@@ -39,7 +39,7 @@ export function SiteFooter() {
           className={`${display} font-medium w-full text-[#66640f] leading-none tracking-[-0.04em] m-0`}
           style={{ fontSize: "clamp(48px, 15vw, 204px)" }}
         >
-          PRIVENT
+          Privent
         </p>
       </div>
     </footer>

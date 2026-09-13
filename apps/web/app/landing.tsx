@@ -390,7 +390,7 @@ export function Landing() {
             className={`${F_DISPLAY} font-medium w-full text-[#66640f] leading-none tracking-[-0.04em]`}
             style={{ fontSize: "clamp(48px, 15vw, 204px)", margin: 0 }}
           >
-            PRIVENT
+            Privent
           </p>
         </div>
       </footer>

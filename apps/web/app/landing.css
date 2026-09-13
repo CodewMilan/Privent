@@ -53,15 +53,6 @@
   margin-bottom: 48px;
 }
 
-.desk-header .kicker {
-  display: block;
-  margin: 0 0 16px;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 14px;
-  font-weight: 400;
-  color: #6c6c6c;
-}
-
 .desk-header h1 {
   margin: 0;
   font-family: var(--font-source-serif), ui-serif, serif;
