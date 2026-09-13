@@ -452,6 +452,162 @@ export function agentRoutes(
     return c.json(presentTrackedAction(db, request));
   });
 
+  routes.post("/:id/agent/propose", async (c) => {
+    if (!llm) {
+      return c.json(
+        {
+          error:
+            "LLM agent is not configured. Set LLM_API_KEY to enable AI proposals.",
+        },
+        503,
+      );
+    }
+
+    const agent = getAgent(db, c.req.param("id"));
+    if (!agent) {
+      return c.json({ error: "Agent not found" }, 404);
+    }
+
+    const parsedBody = await readJsonBody<{ instruction?: string }>(c);
+    if (!parsedBody.ok) return parsedBody.response;
+    const instruction = parsedBody.value.instruction?.trim();
+    if (!instruction) {
+      return c.json({ error: "instruction is required" }, 400);
+    }
+
+    // Build context from real state — treasury, policy, recent actions,
+    // live Graph pulse. The LLM sees only what an operator would see.
+    const walletControls = getOrCreateControls(db, agent, chainId);
+    const effective = intersectLimits(agent.policy, walletControls);
+    const spentToday = centsToDollars(spentTodayCents(db, agent.id));
+    const activity = listActionRequests(db, agent.id).slice(0, 5);
+    const pulse = await execute.graph.readPulse();
+
+    const context: AgentContext = {
+      agentName: agent.name,
+      ensName: agent.ensName,
+      treasuryUsd: centsToDollars(agent.policy.dailyLimitCents),
+      spentTodayUsd: spentToday,
+      policy: {
+        approvalThresholdUsd: effective.approvalThreshold,
+        denyThresholdUsd: effective.denyThreshold,
+        allowedAssets: effective.allowedAssets,
+        allowedRecipients: effective.allowedRecipients,
+      },
+      graph:
+        pulse.status === "unconfigured"
+          ? null
+          : {
+              protocol: pulse.protocol,
+              pair: pulse.pair,
+              tvlUsd: pulse.tvlUsd,
+              volume24hUsd: pulse.volume24hUsd,
+              previousVolumeUsd: pulse.previousVolumeUsd,
+              ethPriceUsd: pulse.ethPriceUsd,
+              vote:
+                pulse.status === "error"
+                  ? "unavailable"
+                  : pulse.tvlUsd != null && pulse.tvlUsd < 1_000_000
+                    ? "thin"
+                    : pulse.previousVolumeUsd &&
+                        pulse.volume24hUsd != null &&
+                        pulse.volume24hUsd < pulse.previousVolumeUsd * 0.5
+                      ? "cooling"
+                      : "healthy",
+              simulated: pulse.simulated,
+            },
+      recentActions: activity.map((item) => ({
+        amountUsd: centsToDollars(item.amountCents),
+        policyDecision: item.policyDecision,
+        reason: item.reason,
+      })),
+    };
+
+    let llmResult;
+    try {
+      llmResult = await llm.propose(context, instruction);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "LLM request failed";
+      writeAudit(db, {
+        agentId: agent.id,
+        type: "agent.failed",
+        message,
+        metadata: { instruction, model: llm.model },
+      });
+      return c.json({ error: message, model: llm.model }, 502);
+    }
+
+    let proposed;
+    try {
+      proposed = proposeAction({
+        action: llmResult.proposal.action,
+        asset: llmResult.proposal.asset,
+        amount: llmResult.proposal.amount,
+        recipient: llmResult.proposal.recipient,
+        reason: llmResult.proposal.reason,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invalid LLM proposal";
+      writeAudit(db, {
+        agentId: agent.id,
+        type: "agent.rejected",
+        message,
+        metadata: {
+          instruction,
+          model: llmResult.model,
+          rawContent: llmResult.rawContent,
+        },
+      });
+      return c.json(
+        {
+          error: message,
+          proposal: llmResult.proposal,
+          rawContent: llmResult.rawContent,
+        },
+        400,
+      );
+    }
+
+    const { request, evaluation } = await submitAction(
+      db,
+      executor,
+      agent,
+      proposed,
+      execute,
+    );
+
+    // Attach the LLM turn to the action so the dashboard can badge it.
+    writeAudit(db, {
+      agentId: agent.id,
+      actionRequestId: request.id,
+      type: "agent.proposed",
+      message: `AI agent proposed $${llmResult.proposal.amount} ${llmResult.proposal.asset}`,
+      metadata: {
+        instruction,
+        model: llmResult.model,
+        rawContent: llmResult.rawContent,
+        promptTokens: llmResult.usage?.promptTokens ?? null,
+        completionTokens: llmResult.usage?.completionTokens ?? null,
+      },
+    });
+
+    return c.json(
+      {
+        request: presentTrackedAction(db, request),
+        evaluation,
+        agent: {
+          model: llmResult.model,
+          instruction,
+          rawContent: llmResult.rawContent,
+          usage: llmResult.usage,
+        },
+      },
+      201,
+    );
+  });
+
   routes.get("/:id/actions", (c) => {
     const agent = getAgent(db, c.req.param("id"));
     if (!agent) {

@@ -30,10 +30,20 @@ const SAMPLE_PAYMENTS = [
   { amount: 5000, reason: "Attempted oversized transfer" },
 ];
 
+export interface SeedOptions {
+  /**
+   * Seed the three-amount demo actions. Default true so existing tests
+   * that build a full sample activity list stay green. The live API sets
+   * this to false — the demo runs from the LLM buttons instead.
+   */
+  seedSamplePayments?: boolean;
+}
+
 export async function seedDemoIfEmpty(
   db: AppDatabase,
   executor: Executor,
   services: AppServices = {},
+  options: SeedOptions = {},
 ): Promise<void> {
   if (listAgents(db).length > 0) {
     return;
@@ -53,9 +63,15 @@ export async function seedDemoIfEmpty(
     await publishPrivyPolicy(db, agent, wallet, services.privy);
   }
 
+  if (options.seedSamplePayments === false) {
+    return;
+  }
+
   const execute = defaultExecuteServices({
     ledger: services.ledger,
+    ledgerEnabled: services.ledgerEnabled,
     creStrategy: services.creStrategy,
+    creEnabled: services.creEnabled,
     graph: services.graph,
     arc: services.arc,
   });

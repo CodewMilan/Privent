@@ -221,16 +221,17 @@ export function evaluateWalletPolicy(
 }
 
 /**
- * Tightest wins. A wallet DENY always beats an app ALLOW.
- * If both require a human, keep the app reason — it is the policy
- * the dashboard already explains.
+ * Tightest wins. When both layers deny, prefer the app policy reason —
+ * it is the primary contract the dashboard already explains. The wallet
+ * still holds the last-mile safety line: if the app says ALLOW but the
+ * wallet says DENY, the wallet wins.
  */
 export function combineEvaluations(
   app: PolicyEvaluation,
   wallet: PolicyEvaluation,
 ): PolicyEvaluation {
-  if (wallet.decision === "DENY") return wallet;
   if (app.decision === "DENY") return app;
+  if (wallet.decision === "DENY") return wallet;
   if (app.decision === "REQUIRE_APPROVAL") return app;
   if (wallet.decision === "REQUIRE_APPROVAL") return wallet;
   return app;

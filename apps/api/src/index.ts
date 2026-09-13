@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadEnvFile } from "node:process";
 import { serve } from "@hono/node-server";
+import { createLlmAgentFromEnv } from "@privent/agent-llm";
 import { createArcFromEnv } from "@privent/arc";
 import { createExecutorFromEnv } from "@privent/blockchain";
 import { DEMO_PRIVATE_STRATEGY } from "@privent/chainlink";
@@ -39,6 +40,14 @@ const executor = createExecutorFromEnv();
 const ledger = createLedgerFromEnv();
 const graph = createGraphFromEnv();
 const arc = createArcFromEnv();
+const llm = createLlmAgentFromEnv();
+
+// Live demo defaults: only the pieces that are actually real in this
+// environment run. Anything unproven is OFF unless explicitly enabled.
+const ledgerEnabled = process.env.LEDGER_ENABLED === "true";
+const creEnabled = process.env.CRE_ENABLED === "true";
+const arcEnabled = process.env.ARC_ENABLED === "true";
+
 const services = {
   ensReader: createViemEnsReader(process.env.ENS_RPC_URL, 1),
   privy:
@@ -51,12 +60,16 @@ const services = {
   dashboardUrl,
   chainId,
   ledger,
+  ledgerEnabled,
   creStrategy: DEMO_PRIVATE_STRATEGY,
+  creEnabled,
   graph,
   arc,
+  arcEnabled,
+  llm,
 };
 
-await seedDemoIfEmpty(db, executor, services);
+await seedDemoIfEmpty(db, executor, services, { seedSamplePayments: false });
 
 const app = createApp(db, executor, services);
 
@@ -72,8 +85,17 @@ if (services.privy) {
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`privent-api listening on http://localhost:${info.port}`);
   console.log(`signer mode: ${executor.mode} from ${executor.fromAddress}`);
-  console.log(`high-risk: Ledger ${ledger.kind}`);
-  console.log("confidential: CRE nitro-sim (simulated)");
+  console.log(
+    `high-risk: Ledger ${ledger.kind} · ${ledgerEnabled ? "enabled" : "OFF for demo"}`,
+  );
+  console.log(
+    `confidential: CRE nitro-sim · ${creEnabled ? "enabled" : "OFF for demo"}`,
+  );
   console.log(`market: Graph ${graph.kind}`);
-  console.log(`payments: Arc ${arc.kind}`);
+  console.log(
+    `payments: Arc ${arc.kind} · ${arcEnabled ? "enabled" : "OFF for demo"}`,
+  );
+  console.log(
+    `llm: ${llm ? `${llm.kind} · ${llm.model}` : "not configured"}`,
+  );
 });

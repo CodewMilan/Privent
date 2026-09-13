@@ -50,6 +50,15 @@ export interface AuditEvent {
   createdAt: string;
 }
 
+export interface AgentTurn {
+  id: string;
+  actionRequestId: string | null;
+  instruction: string | null;
+  model: string | null;
+  rawContent: string | null;
+  createdAt: string;
+}
+
 export interface Overview {
   agent: PresentedAgent;
   signer: {
@@ -81,6 +90,17 @@ export interface Overview {
     simulated: boolean;
     briefCents: number;
   };
+  demo: {
+    ledgerEnabled: boolean;
+    creEnabled: boolean;
+    arcEnabled: boolean;
+    llm: {
+      enabled: boolean;
+      kind: "openrouter" | "canned" | null;
+      model: string | null;
+    };
+  };
+  agentTurns: AgentTurn[];
   identity: {
     ensName: string | null;
     published: {
@@ -142,21 +162,19 @@ export async function fetchOverview(): Promise<Overview> {
   return readJson<Overview>(await fetch(`${API_URL}/agents/${agent.id}/overview`));
 }
 
-export async function buyProtocolBrief(
+export async function askAgent(
   agentId: string,
-  recipient: string,
+  instruction: string,
 ): Promise<void> {
   await readJson(
-    await fetch(`${API_URL}/agents/${agentId}/actions`, {
+    await fetch(`${API_URL}/agents/${agentId}/agent/propose`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action: "PAYMENT",
-        asset: "USDC",
-        amount: 0.02,
-        recipient,
-        reason: "Pay for Uniswap V3 protocol brief",
-      }),
+      headers: {
+        "content-type": "application/json",
+        "x-actor-type": "human",
+        "x-actor-id": "acme-cfo",
+      },
+      body: JSON.stringify({ instruction }),
     }),
   );
 }

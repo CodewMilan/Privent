@@ -13,7 +13,7 @@ function stripCodeFences(input: string): string {
 function coerceAmount(value: unknown): number {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
-    const cleaned = value.replace(/[^\d.\-]/g, "");
+    const cleaned = value.replace(/[^\d.-]/g, "");
     if (!cleaned) return NaN;
     return Number(cleaned);
   }

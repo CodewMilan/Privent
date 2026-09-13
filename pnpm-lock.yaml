@@ -151,6 +151,13 @@ importers:
       '@privent/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.20.2
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/arc:
     dependencies:
