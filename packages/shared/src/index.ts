@@ -22,3 +22,5 @@ export type {
 } from "./types.js";
 
 export { centsToDollars, dollarsToCents, formatDollars } from "./money.js";
+export { describePermissions } from "./permissions.js";
+export type { PermissionRow, PermissionState } from "./permissions.js";

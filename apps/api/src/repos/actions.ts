@@ -73,13 +73,24 @@ export function insertActionRequest(
   return request;
 }
 
+export function getActionRequest(
+  db: AppDatabase,
+  agentId: string,
+  actionId: string,
+): ActionRequest | null {
+  const row = db
+    .prepare("SELECT * FROM action_requests WHERE id = ? AND agent_id = ?")
+    .get(actionId, agentId) as unknown as ActionRow | undefined;
+  return row ? toAction(row) : null;
+}
+
 export function listActionRequests(
   db: AppDatabase,
   agentId: string,
 ): ActionRequest[] {
   const rows = db
     .prepare(
-      "SELECT * FROM action_requests WHERE agent_id = ? ORDER BY created_at",
+      "SELECT * FROM action_requests WHERE agent_id = ? ORDER BY created_at DESC",
     )
     .all(agentId) as unknown as ActionRow[];
   return rows.map(toAction);

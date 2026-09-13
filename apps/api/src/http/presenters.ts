@@ -1,4 +1,9 @@
-import { centsToDollars, type Agent, type ActionRequest } from "@privent/shared";
+import {
+  centsToDollars,
+  type ActionRequest,
+  type Agent,
+  type ApprovalRequest,
+} from "@privent/shared";
 
 export function presentAgent(agent: Agent) {
   return {
@@ -21,7 +26,10 @@ export function presentAgent(agent: Agent) {
   };
 }
 
-export function presentAction(request: ActionRequest) {
+export function presentAction(
+  request: ActionRequest,
+  approval: ApprovalRequest | null = null,
+) {
   return {
     id: request.id,
     agentId: request.agentId,
@@ -33,6 +41,8 @@ export function presentAction(request: ActionRequest) {
     reason: request.reason,
     policyDecision: request.policyDecision,
     policyReason: request.policyReason,
+    approvalStatus: approval?.status ?? null,
+    decidedBy: approval?.decidedBy ?? null,
     createdAt: request.createdAt,
   };
 }
