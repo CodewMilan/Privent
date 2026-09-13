@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import type { PermissionRow } from "@privent/shared";
 import {
   askAgent,
@@ -171,7 +172,15 @@ export function Dashboard() {
             agent never holds a key.
           </p>
         </div>
-        <p className="text-sm text-mute">Signed in as Acme Finance</p>
+        <div className="flex flex-col items-end gap-2">
+          <Link
+            href="/"
+            className="text-sm text-brass underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-brass"
+          >
+            Back to site
+          </Link>
+          <p className="text-sm text-mute">Signed in as Acme Finance</p>
+        </div>
       </header>
 
       {load.status === "loading" && <Skeleton />}
