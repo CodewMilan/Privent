@@ -2,6 +2,15 @@ import { createSimulatedExecutor } from "./simulated.js";
 import { createViemExecutor } from "./viem.js";
 import type { Executor } from "./types.js";
 
+export function normalizePrivateKey(value: string): `0x${string}` {
+  const trimmed = value.trim();
+  const hex = trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
+  if (!/^0x[a-fA-F0-9]{64}$/.test(hex)) {
+    throw new Error("EXECUTOR_PRIVATE_KEY must be a 32-byte hex key");
+  }
+  return hex as `0x${string}`;
+}
+
 /**
  * Production factory. Tests never call this — they inject a simulated
  * executor so a leftover shell key cannot broadcast.
@@ -19,12 +28,8 @@ export function createExecutorFromEnv(): Executor {
     return createSimulatedExecutor();
   }
 
-  if (!/^0x[a-fA-F0-9]{64}$/.test(privateKey)) {
-    throw new Error("EXECUTOR_PRIVATE_KEY must be a 0x-prefixed 32-byte hex key");
-  }
-
   return createViemExecutor({
-    privateKey: privateKey as `0x${string}`,
+    privateKey: normalizePrivateKey(privateKey),
     rpcUrl:
       process.env.RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com",
     chainId: Number(process.env.CHAIN_ID ?? 11155111),

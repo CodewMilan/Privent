@@ -36,3 +36,12 @@ describe("viem signer", () => {
     ).toThrow(/mainnet/i);
   });
 });
+
+describe("normalizePrivateKey", () => {
+  it("accepts keys with or without a 0x prefix", async () => {
+    const { normalizePrivateKey } = await import("../executor.js");
+    expect(normalizePrivateKey(TEST_KEY.slice(2))).toBe(TEST_KEY);
+    expect(normalizePrivateKey(TEST_KEY)).toBe(TEST_KEY);
+    expect(() => normalizePrivateKey("nope")).toThrow(/32-byte/i);
+  });
+});
