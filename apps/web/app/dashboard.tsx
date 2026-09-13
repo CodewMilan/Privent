@@ -185,6 +185,8 @@ function identityStatus(identity: Overview["identity"]): string {
       return "Not published on-chain";
     case "error":
       return "Lookup failed";
+    case "timeout":
+      return "ENS lookup timed out";
     case "no-ens":
       return "No ENS name";
   }

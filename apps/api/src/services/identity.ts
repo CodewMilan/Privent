@@ -13,7 +13,8 @@ export type IdentityAgreement =
   | "name-not-found"
   | "match"
   | "mismatch"
-  | "error";
+  | "error"
+  | "timeout";
 
 export interface AgentIdentityView {
   ensName: string | null;
@@ -53,29 +54,38 @@ export async function describeIdentity(
     published = null;
   }
 
-  const onChain = reader
-    ? await withTimeout(resolveAgentIdentity(ensName, reader), 4_000)
-    : null;
+  let onChain: ResolvedAgentIdentity | null = null;
+  let timedOut = false;
+  if (reader) {
+    const result = await withTimeout(resolveAgentIdentity(ensName, reader), 4_000);
+    if (result === "__timeout__") {
+      timedOut = true;
+    } else {
+      onChain = result;
+    }
+  }
 
   return {
     ensName,
     published,
     onChain,
-    agreement: agreementOf(published, onChain),
+    agreement: timedOut ? "timeout" : agreementOf(published, onChain),
   };
 }
+
+const TIMEOUT_SENTINEL = "__timeout__" as const;
 
 async function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
-): Promise<T | null> {
+): Promise<T | typeof TIMEOUT_SENTINEL> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   void promise.catch(() => undefined);
   try {
-    return await Promise.race([
+    return await Promise.race<T | typeof TIMEOUT_SENTINEL>([
       promise,
-      new Promise<null>((resolve) => {
-        timer = setTimeout(() => resolve(null), ms);
+      new Promise<typeof TIMEOUT_SENTINEL>((resolve) => {
+        timer = setTimeout(() => resolve(TIMEOUT_SENTINEL), ms);
       }),
     ]);
   } finally {

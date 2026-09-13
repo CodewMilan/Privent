@@ -30,12 +30,26 @@ export function getOrCreateControls(
   return upsertControls(db, agent.id, walletPolicyFromApp(agent.policy, chainId));
 }
 
+/**
+ * One-time migration for databases created before Phase 5.
+ *
+ * If an agent has no wallet controls yet, we create them and — for the
+ * seeded demo agent that never had a recipient allowlist — backfill one
+ * so the wallet policy is meaningful out of the box.
+ *
+ * We only backfill on the first migration pass. If a later operator
+ * clears the allowlist via PATCH /policy, we respect that and never
+ * silently restore it on the next startup.
+ */
 export function ensureAgentControls(
   db: AppDatabase,
   chainId = DEFAULT_CHAIN_ID,
 ): void {
   for (const agent of listAgents(db)) {
+    const hadControls = getControls(db, agent.id) !== null;
     const wallet = getOrCreateControls(db, agent, chainId);
+    if (hadControls) continue;
+
     if (
       agent.ensName === DEMO_ENS &&
       wallet.allowedRecipients.length === 0

@@ -210,6 +210,41 @@ describe("ENS identity + wallet policy", () => {
     expect(allowed.request.txHash).toMatch(/^0x[a-f0-9]{64}$/);
   });
 
+  it("does not restore a cleared recipient allowlist on the next startup", async () => {
+    const agents = await (await app.request("/agents")).json();
+    const agentId = agents[0].id;
+
+    const patched = await app.request(`/agents/${agentId}/policy`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-actor-type": "human",
+        "x-actor-id": "cfo",
+      },
+      body: JSON.stringify({
+        dailyLimit: 10_000,
+        perTransactionLimit: 2_000,
+        approvalThreshold: 500,
+        denyThreshold: 2_000,
+        allowedAssets: ["USDC", "ETH"],
+        allowedRecipients: [],
+      }),
+    });
+    expect(patched.status).toBe(200);
+    const cleared = await patched.json();
+    expect(cleared.policy.allowedRecipients).toEqual([]);
+
+    // Simulate a restart: build a fresh app on the same DB.
+    const restarted = createApp(db, createSimulatedExecutor(), {
+      ensReader: createStaticEnsReader({}),
+      dashboardUrl: "http://localhost:3000",
+    });
+    const after = await (
+      await restarted.request(`/agents/${agentId}`)
+    ).json();
+    expect(after.policy.allowedRecipients).toEqual([]);
+  });
+
   it("records a Privy policy id when sync succeeds and does not fail seed on error", async () => {
     const fresh = openDatabase(":memory:");
     migrate(fresh);

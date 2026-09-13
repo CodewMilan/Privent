@@ -9,6 +9,9 @@ import { createApp } from "./app.js";
 import { openDatabase } from "./db/client.js";
 import { migrate } from "./db/migrate.js";
 import { seedDemoIfEmpty } from "./db/seed.js";
+import { listAgents } from "./repos/agents.js";
+import { getControls } from "./repos/controls.js";
+import { publishPrivyPolicy } from "./services/wallet.js";
 
 for (const candidate of [
   resolve(process.cwd(), ".env"),
@@ -45,6 +48,15 @@ const services = {
 await seedDemoIfEmpty(db, executor, services);
 
 const app = createApp(db, executor, services);
+
+if (services.privy) {
+  for (const agent of listAgents(db)) {
+    const wallet = getControls(db, agent.id);
+    if (wallet && !wallet.privyPolicyId) {
+      await publishPrivyPolicy(db, agent, wallet, services.privy);
+    }
+  }
+}
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`privent-api listening on http://localhost:${info.port}`);

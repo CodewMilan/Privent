@@ -70,7 +70,8 @@ export interface Overview {
       | "name-not-found"
       | "match"
       | "mismatch"
-      | "error";
+      | "error"
+      | "timeout";
   };
   wallet: {
     maxAuto: number;
